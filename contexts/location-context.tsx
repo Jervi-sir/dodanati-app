@@ -16,9 +16,12 @@ type LocationContextType = {
   region: Region;
   setRegion: (r: Region) => void;
   recenterOnUser: () => void;
-  mapRef: React.RefObject<MapView>;
+  mapRef: React.RefObject<MapView | null>;
   mapProvider: MapProviderKind;
   setMapProvider: (p: MapProviderKind) => void;
+  isSimulatingLocation: boolean;
+  toggleSimulationMode: () => void;
+  simulateLocation: (lat: number, lng: number) => void;
 };
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
@@ -34,6 +37,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [currentLat, setCurrentLat] = useState<number | null>(null);
   const [currentLng, setCurrentLng] = useState<number | null>(null);
   const [mapProvider, setMapProvider] = useState<MapProviderKind>('system');
+  const [isSimulatingLocation, setIsSimulatingLocation] = useState(false);
 
   const [region, setRegion] = useState<Region>({
     latitude: DEFAULT_LAT,
@@ -43,6 +47,11 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   const mapRef = useRef<MapView>(null);
+  const isSimulatingRef = useRef(isSimulatingLocation);
+
+  useEffect(() => {
+    isSimulatingRef.current = isSimulatingLocation;
+  }, [isSimulatingLocation]);
 
   useEffect(() => {
     (async () => {
@@ -60,8 +69,17 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await AsyncStorage.setItem('mapProvider', next);
   };
 
+  const toggleSimulationMode = () => setIsSimulatingLocation(!isSimulatingLocation);
+
+  const simulateLocation = (lat: number, lng: number) => {
+    setCurrentLat(lat);
+    setCurrentLng(lng);
+  };
+
   useEffect(() => {
-    const loadLocation = async () => {
+    let subscriber: Location.LocationSubscription | null = null;
+
+    const startLocationTracking = async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -70,34 +88,55 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           return;
         }
 
-        const loc = await Location.getCurrentPositionAsync({});
-        const lat = loc.coords.latitude ?? DEFAULT_LAT;
-        const lng = loc.coords.longitude ?? DEFAULT_LNG;
+        // Get initial position quickly
+        const initialLoc = await Location.getCurrentPositionAsync({});
+        const lat = initialLoc.coords.latitude ?? DEFAULT_LAT;
+        const lng = initialLoc.coords.longitude ?? DEFAULT_LNG;
 
-        setCurrentLat(lat);
-        setCurrentLng(lng);
+        if (!isSimulatingRef.current) {
+          setCurrentLat(lat);
+          setCurrentLng(lng);
+          const initialRegion = {
+            latitude: lat,
+            longitude: lng,
+            latitudeDelta: 0.03,
+            longitudeDelta: 0.03,
+          };
+          setRegion(initialRegion);
 
-        setRegion((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+          setTimeout(() => {
+            mapRef.current?.animateToRegion(initialRegion, 500);
+          }, 300);
+        }
 
-        setTimeout(() => {
-          mapRef.current?.animateToRegion(
-            {
-              latitude: lat,
-              longitude: lng,
-              latitudeDelta: 0.03,
-              longitudeDelta: 0.03,
-            },
-            500
-          );
-        }, 300);
+        setLocationLoading(false);
+
+        // Start watching
+        subscriber = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 2000,
+            distanceInterval: 10,
+          },
+          (loc) => {
+            if (!isSimulatingRef.current) {
+              setCurrentLat(loc.coords.latitude);
+              setCurrentLng(loc.coords.longitude);
+            }
+          }
+        );
+
       } catch (err) {
         console.error('Location error', err);
-      } finally {
         setLocationLoading(false);
       }
     };
 
-    loadLocation();
+    startLocationTracking();
+
+    return () => {
+      subscriber?.remove();
+    };
   }, []);
 
   const recenterOnUser = useCallback(() => {
@@ -124,6 +163,9 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         mapRef,
         mapProvider,
         setMapProvider: updateMapProvider,
+        isSimulatingLocation,
+        toggleSimulationMode,
+        simulateLocation,
       }}
     >
       {children}

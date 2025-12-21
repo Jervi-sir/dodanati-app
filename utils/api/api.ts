@@ -17,6 +17,8 @@ export const ApiRoutes = {
     index: 'hazards',
     history: 'hazards/history',
     nearby: 'hazards/nearby',
+    inBounds: 'hazards/in-bounds',
+
     rate: 'hazards/:hazard_id/rate',
     delete: 'hazards/:hazard_id'
   }

@@ -53,7 +53,10 @@ export const RouteSummarySection = ({ routeLoading, routeSummary, onQuit }: Prop
         Distance approx. : {routeSummary.distance_km.toFixed(1)} km
       </Text>
       <Text style={styles.routeSummaryLine}>
-        Dos-d’âne : {speedBumps} • Nids-de-poule : {potholes}
+        Dos-d’âne : {speedBumps}
+      </Text>
+      <Text style={[styles.routeSummaryLine]}>
+        {potholes} : حفرة
       </Text>
 
       {routeLoading && (

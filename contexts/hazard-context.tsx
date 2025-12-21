@@ -1,12 +1,13 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Region } from 'react-native-maps';
+
 import api from '@/utils/api/axios-instance';
 import { ApiRoutes, buildRoute } from '@/utils/api/api';
 import { useDevice } from './device-context';
 import { useLocation } from './location-context';
 import { useUI } from './ui-context';
-import { Region } from 'react-native-maps';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type RoadHazardCategoryTaxonomyItem = {
   id?: number;
@@ -22,8 +23,8 @@ export type RoadHazard = {
   note: string | null;
   lat: number;
   lng: number;
-  upvotes: 0,
-  downvotes: 0,
+  upvotes: 0;
+  downvotes: 0;
   reports_count: number;
   last_reported_at: string | null;
   is_active: boolean;
@@ -40,26 +41,73 @@ export type RoadHazard = {
   };
 };
 
+export type HazardCluster = {
+  lat: number;
+  lng: number;
+  count: number;
+};
+
+export type NearbyPointsResponse = {
+  mode: 'points';
+  meta: {
+    returned_count: number;
+    total_in_radius: number;
+    radius_km: number;
+    limit: number;
+  };
+  data: RoadHazard[];
+};
+
+export type NearbyClustersResponse = {
+  mode: 'clusters';
+  meta: {
+    total_in_radius: number;
+    radius_km: number;
+    zoom: number;
+    cell_deg: number;
+    returned_clusters: number;
+    limit: number;
+  };
+  data: HazardCluster[];
+};
+
+export type NearbyResponse = NearbyPointsResponse | NearbyClustersResponse;
+
+type HazardMode = 'points' | 'clusters';
+
 type HazardContextType = {
+  // data
   hazards: RoadHazard[];
+  clusters: HazardCluster[];
+  mode: HazardMode;
+  totalInRadius: number;
+
   categories: RoadHazardCategoryTaxonomyItem[];
   categoriesLoading: boolean;
   hazardsLoading: boolean;
+
   selectedHazard: RoadHazard | null;
   setSelectedHazard: (h: RoadHazard | null) => void;
+
   selectedCategoryId: number | null;
   setSelectedCategoryId: (id: number) => void;
+
   severity: number;
   setSeverity: (s: number) => void;
+
   note: string;
   setNote: (s: string) => void;
+
   handleSubmitHazard: () => void;
   handleQuickReport: (slug: 'speed_bump' | 'pothole') => void;
-  refreshHazards: () => void;
-  deleteHazard: (id: number) => void;
-}
 
-const STORAGE_KEY_HAZARDS = 'offline_hazards_cache';
+  refreshHazards: () => void;
+
+  deleteHazard: (id: number) => void;
+};
+
+const STORAGE_KEY_HAZARDS = 'offline_hazards_cache_v1';
+const STORAGE_KEY_CLUSTERS = 'offline_hazard_clusters_cache_v1';
 
 const HazardContext = createContext<HazardContextType | undefined>(undefined);
 
@@ -69,26 +117,38 @@ export const useHazards = () => {
   return ctx;
 };
 
-// Simple distance calculation (Haversine approximation for short distances)
+// Simple haversine distance in km
 const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371; // Radius of the earth in km
+  const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * (Math.PI / 180)) *
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) ** 2;
+
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+};
+
+// Approx zoom from region longitudeDelta
+export const zoomFromRegion = (region: Region) => {
+  const angle = Math.max(region.longitudeDelta, 0.000001);
+  return Math.round(Math.log2(360 / angle));
 };
 
 export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { deviceUuid } = useDevice();
   const { currentLat, currentLng, region } = useLocation();
-  const { showSnackbar, closeReportSheet, openReportSheet } = useUI();
+  const { showSnackbar, closeReportSheet } = useUI();
 
   const [categories, setCategories] = useState<RoadHazardCategoryTaxonomyItem[]>([]);
   const [hazards, setHazards] = useState<RoadHazard[]>([]);
+  const [clusters, setClusters] = useState<HazardCluster[]>([]);
+  const [mode, setMode] = useState<HazardMode>('points');
+  const [totalInRadius, setTotalInRadius] = useState(0);
+
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [hazardsLoading, setHazardsLoading] = useState(false);
 
@@ -97,28 +157,31 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [severity, setSeverity] = useState(3);
   const [note, setNote] = useState('');
 
-  const lastFetchRef = useRef<{ lat: number; lng: number } | null>(null);
+  // Track last fetch to avoid spamming
+  const lastFetchRef = useRef<{ lat: number; lng: number; zoom: number } | null>(null);
 
-  // Load offline hazards on mount
+  // Offline load (points + clusters)
   useEffect(() => {
     const loadOffline = async () => {
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY_HAZARDS);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setHazards(parsed);
-          }
+        const storedHazards = await AsyncStorage.getItem(STORAGE_KEY_HAZARDS);
+        if (storedHazards) {
+          const parsed = JSON.parse(storedHazards);
+          if (Array.isArray(parsed)) setHazards(parsed);
+        }
+
+        const storedClusters = await AsyncStorage.getItem(STORAGE_KEY_CLUSTERS);
+        if (storedClusters) {
+          const parsed = JSON.parse(storedClusters);
+          if (Array.isArray(parsed)) setClusters(parsed);
         }
       } catch (e) {
-        console.error('Failed to load offline hazards', e);
+        console.error('Failed to load offline hazards/clusters', e);
       }
     };
     loadOffline();
   }, []);
 
-  // Save hazards to offline storage whenever they update (debounced?)
-  // We can just save them when we fetch new ones successfully
   const cacheHazards = async (data: RoadHazard[]) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY_HAZARDS, JSON.stringify(data));
@@ -127,42 +190,15 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Debouncing fetch
-  const fetchNearbyHazards = useCallback(async (lat: number, lng: number) => {
-    setHazardsLoading(true);
+  const cacheClusters = async (data: HazardCluster[]) => {
     try {
-      const res = await api.get(buildRoute(ApiRoutes.hazards.nearby), {
-        params: { lat, lng, radius_km: 10 },
-        headers: { 'X-Requires-Auth': false },
-      });
-      const data: RoadHazard[] = res?.data?.data || [];
-      setHazards(data);
-      cacheHazards(data); // Cache new data
-      lastFetchRef.current = { lat, lng }; // Update last fetch ref
-    } catch (err) {
-      console.error('Nearby hazards error', err);
-    } finally {
-      setHazardsLoading(false);
+      await AsyncStorage.setItem(STORAGE_KEY_CLUSTERS, JSON.stringify(data));
+    } catch (e) {
+      console.error('Failed to cache clusters', e);
     }
-  }, []);
+  };
 
-  // Fetch when region changes significantly
-  useEffect(() => {
-    if (region) {
-      // Avoid fetching if we haven't moved far enough (e.g., 2km)
-      if (lastFetchRef.current) {
-        const dist = getDistanceKm(lastFetchRef.current.lat, lastFetchRef.current.lng, region.latitude, region.longitude);
-        // If distance is less than 2km, skip fetch
-        if (dist < 2) return;
-      }
-
-      const timer = setTimeout(() => {
-        fetchNearbyHazards(region.latitude, region.longitude);
-      }, 500); // 500ms debounce
-      return () => clearTimeout(timer);
-    }
-  }, [region, fetchNearbyHazards]);
-
+  // Fetch categories (taxonomy)
   useEffect(() => {
     const loadCategories = async () => {
       setCategoriesLoading(true);
@@ -171,9 +207,11 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           params: { lang: 'fr', fields: 'id,slug,label,icon', active_only: true },
           headers: { 'X-Requires-Auth': false },
         });
+
         const data = res?.data?.data || [];
         setCategories(data);
-        if (data.length && selectedCategoryId == null && data[0].id) {
+
+        if (data.length && selectedCategoryId == null && data[0]?.id) {
           setSelectedCategoryId(data[0].id);
         }
       } catch (err) {
@@ -182,9 +220,12 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setCategoriesLoading(false);
       }
     };
+
     loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Upsert hazard into points array (used after submit/quick report)
   const upsertHazard = (newHazard: RoadHazard) => {
     setHazards((prev) => {
       const exists = prev.find((h) => h.id === newHazard.id);
@@ -192,6 +233,72 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return [newHazard, ...prev];
     });
   };
+
+  // MAIN fetch: returns either points or clusters based on backend mode
+  const fetchNearby = useCallback(async (lat: number, lng: number, zoom: number) => {
+    setHazardsLoading(true);
+    try {
+      const res = await api.get(buildRoute(ApiRoutes.hazards.nearby), {
+        params: { lat, lng, radius_km: 10, zoom, mode: 'auto' },
+        headers: { 'X-Requires-Auth': false },
+      });
+
+      const payload: NearbyResponse = res?.data;
+
+      if (payload?.mode === 'points') {
+        setMode('points');
+        setHazards(payload.data || []);
+        setClusters([]); // optional: clear clusters when in points
+        setTotalInRadius(payload.meta?.total_in_radius ?? 0);
+        cacheHazards(payload.data || []);
+      } else if (payload?.mode === 'clusters') {
+        setMode('clusters');
+        setClusters(payload.data || []);
+        // keep hazards as-is or clear them:
+        // setHazards([]);
+        setTotalInRadius(payload.meta?.total_in_radius ?? 0);
+        cacheClusters(payload.data || []);
+      } else {
+        console.warn('Unknown hazards response', payload);
+      }
+
+      lastFetchRef.current = { lat, lng, zoom };
+    } catch (err) {
+      console.error('Nearby hazards error', err);
+    } finally {
+      setHazardsLoading(false);
+    }
+  }, []);
+
+  // Auto fetch on region changes (debounced)
+  useEffect(() => {
+    if (!region) return;
+
+    const z = zoomFromRegion(region);
+
+    // Avoid fetching if moved < 2km AND zoom unchanged enough
+    if (lastFetchRef.current) {
+      const dist = getDistanceKm(
+        lastFetchRef.current.lat,
+        lastFetchRef.current.lng,
+        region.latitude,
+        region.longitude
+      );
+
+      const zoomDiff = Math.abs(lastFetchRef.current.zoom - z);
+
+      // tweak thresholds:
+      // - distance threshold
+      // - zoom change threshold
+      if (dist < 2 && zoomDiff < 1) return;
+    }
+
+    const timer = setTimeout(() => {
+      fetchNearby(region.latitude, region.longitude, z);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [region, fetchNearby]);
 
   const handleSubmitHazard = async () => {
     if (!deviceUuid) {
@@ -203,10 +310,6 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
 
-    // Optimistic Update can be tricky for new IDs, but we can display a temp marker if needed.
-    // For now we will rely on fast server response, but show success immediately?
-
-    // We'll prepare payload
     const lat = currentLat ?? region.latitude;
     const lng = currentLng ?? region.longitude;
 
@@ -223,24 +326,23 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         locale: 'fr-DZ',
       };
 
-      // Close sheet immediately for better UX
       closeReportSheet();
       showSnackbar('Envoi en cours...');
 
       const res = await api.post(buildRoute(ApiRoutes.hazards.index), payload);
       const newHazard: RoadHazard = res.data.data;
 
-      // Update safely
+      // If you're currently in clusters mode, you can still upsert locally,
+      // but it won't show unless user zooms in. That's fine.
       upsertHazard(newHazard);
+
       setNote('');
       setSeverity(3);
 
-      showSnackbar(res.data.meta.merged ? 'Signalement fusionné.' : 'Signalement ajouté.', 'OK');
-
+      showSnackbar(res.data.meta?.merged ? 'Signalement fusionné.' : 'Signalement ajouté.', 'OK');
     } catch (err) {
       console.error('Submit hazard error', err);
       Alert.alert('Erreur', 'Impossible de soumettre le danger.');
-      // Ideally rollback optimistic UI here if we had applied it.
     }
   };
 
@@ -258,9 +360,6 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const lat = currentLat ?? region.latitude;
     const lng = currentLng ?? region.longitude;
 
-    // Optimistic: create a fake hazard and add it?
-    // Since we don't have ID, maybe just fire and forget.
-
     showSnackbar(slug === 'speed_bump' ? 'Dos-d’âne enregistré.' : 'حفرة enregistré.', 'Ajouter détails');
 
     try {
@@ -277,48 +376,64 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const res = await api.post(buildRoute(ApiRoutes.hazards.index), payload);
       upsertHazard(res.data.data);
-
     } catch (err) {
       console.error('Quick hazard error', err);
-      // Maybe show toast for failure
     }
   };
 
   const deleteHazard = async (id: number) => {
-    // Optimistic delete
     setHazards((prev) => prev.filter((h) => h.id !== id));
     showSnackbar('Signalement supprimé.');
 
     try {
-      // TODO: Implement actual API call to Laravel backend
       await api.delete(buildRoute(ApiRoutes.hazards.delete, { hazard_id: id }));
-      console.log('Deleted hazard', id, '(Mock)');
     } catch (err) {
       console.error('Delete hazard error', err);
       Alert.alert('Erreur', 'Impossible de supprimer le signalement.');
-      fetchNearbyHazards(region.latitude, region.longitude);
+
+      // refetch after failure
+      if (region) {
+        const z = zoomFromRegion(region);
+        fetchNearby(region.latitude, region.longitude, z);
+      }
     }
   };
+
+  const refreshHazards = useCallback(() => {
+    if (!region) return;
+    const z = zoomFromRegion(region);
+    fetchNearby(region.latitude, region.longitude, z);
+  }, [region, fetchNearby]);
 
   return (
     <HazardContext.Provider
       value={{
         hazards,
+        clusters,
+        mode,
+        totalInRadius,
+
         categories,
         categoriesLoading,
         hazardsLoading,
+
         selectedHazard,
         setSelectedHazard,
+
         selectedCategoryId,
         setSelectedCategoryId,
+
         severity,
         setSeverity,
+
         note,
         setNote,
+
         handleSubmitHazard,
         handleQuickReport,
+
         deleteHazard,
-        refreshHazards: () => fetchNearbyHazards(region.latitude, region.longitude),
+        refreshHazards,
       }}
     >
       {children}

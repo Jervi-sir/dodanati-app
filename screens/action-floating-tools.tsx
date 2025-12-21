@@ -23,7 +23,7 @@ export const ActionFloatingTools = () => {
   const { isDriveMode, toggleDriveMode } = useDrive();
   const { hazardsLoading, handleQuickReport } = useHazards();
   const { bootLoading } = useDevice();
-  const { locationLoading, recenterOnUser } = useLocation();
+  const { locationLoading, recenterOnUser, isSimulatingLocation, toggleSimulationMode } = useLocation();
   const { routeSummary, routeLoading, clearRoute } = useRoute();
 
   const isLoading = bootLoading || locationLoading;
@@ -179,6 +179,18 @@ export const ActionFloatingTools = () => {
           >
             <CenterMapIcon size={22} color={theme.colors.text} />
           </TouchableOpacity>
+
+          {/* Reuse CenterMapIcon but maybe it represents 'Pick Location' */}
+          {/* <TouchableOpacity
+            style={[
+              iconBtnStyle,
+              isSimulatingLocation && { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent }
+            ]}
+            onPress={toggleSimulationMode}
+            activeOpacity={0.8}
+          >
+            <CenterMapIcon size={22} color={isSimulatingLocation ? '#FFF' : theme.colors.text} />
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={{
