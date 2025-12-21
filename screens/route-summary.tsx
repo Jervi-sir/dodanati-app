@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { RouteSummary } from './map-context';
-import { AppTheme, useTheme } from './theme-context';
+import { RouteSummary } from '../contexts/route-context';
+import { AppTheme, useTheme } from '../contexts/theme-context';
 
 type Props = {
   routeSummary: RouteSummary | null;
@@ -71,10 +71,7 @@ export const RouteSummarySection = ({ routeLoading, routeSummary, onQuit }: Prop
 const makeStyles = (theme: AppTheme) =>
   StyleSheet.create({
     routeSummaryCard: {
-      position: 'absolute',
-      left: 16,
-      right: 16,
-      top: 60,
+      position: 'relative',
 
       paddingHorizontal: 12,
       paddingVertical: 10,
@@ -83,7 +80,7 @@ const makeStyles = (theme: AppTheme) =>
       backgroundColor:
         theme.mode === 'light'
           ? '#111827EE'         // deep slate with alpha (keeps good contrast on light map)
-          : '#1F2937EE',        // slightly lighter slate on dark mode (balanced)
+          : '#020617',        // slightly lighter slate on dark mode (balanced)
 
       shadowColor: '#000',
       shadowOpacity: theme.mode === 'light' ? 0.25 : 0.4,
@@ -93,7 +90,9 @@ const makeStyles = (theme: AppTheme) =>
     },
 
     routeSummaryTitle: {
-      color: theme.colors.background,          // always bright & readable
+      color: theme.mode === 'light'
+        ? '#E5E7EB'
+        : '#D1D5DB',
       fontWeight: '600',
       marginBottom: 4,
       fontSize: 14,

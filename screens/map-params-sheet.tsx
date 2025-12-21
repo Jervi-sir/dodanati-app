@@ -7,11 +7,11 @@ import {
   View,
 } from 'react-native';
 import ActionSheet, { ActionSheetRef } from 'react-native-actions-sheet';
-import { MapProviderKind, useMap } from './map-context';
-import { useTheme, AppTheme, ThemeMode } from './theme-context';
+import { MapProviderKind, useLocation } from '../contexts/location-context';
+import { useTheme, AppTheme, ThemeMode } from '../contexts/theme-context';
 
 type MapParamsSheetProps = {
-  actionSheetRef: React.RefObject<ActionSheetRef>;
+  actionSheetRef: React.RefObject<ActionSheetRef | null>;
   onShowHistory: () => void;
 };
 
@@ -20,7 +20,7 @@ export const MapParamsSheet: React.FC<MapParamsSheetProps> = ({
   onShowHistory,
 }) => {
   const { theme, mode, setMode } = useTheme();         // 👈 use current mode here
-  const { mapProvider, updateMapProvider } = useMap();
+  const { mapProvider, setMapProvider } = useLocation();
 
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
@@ -75,7 +75,7 @@ export const MapParamsSheet: React.FC<MapParamsSheetProps> = ({
             return (
               <TouchableOpacity
                 key={value}
-                onPress={() => updateMapProvider(value)}
+                onPress={() => setMapProvider(value)}
                 style={[styles.chip, active && styles.chipActive]}
                 activeOpacity={0.8}
               >

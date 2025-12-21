@@ -13,7 +13,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "${GOOGLE_MAPS_API_KEY}"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +25,12 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.jervi.dodanati"
+      "package": "com.jervi.dodanati",
+      "config": {
+        "googleMaps": {
+          "apiKey": "${GOOGLE_MAPS_API_KEY}"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

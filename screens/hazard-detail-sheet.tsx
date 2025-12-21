@@ -2,12 +2,14 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ActionSheet, { ActionSheetRef } from 'react-native-actions-sheet';
-import { RoadHazard } from './map-context';
-import { AppTheme, useTheme } from './theme-context';
+import { Alert } from 'react-native';
+import { useHazards } from '../contexts/hazard-context';
+import { RoadHazard } from '../contexts/hazard-context';
+import { AppTheme, useTheme } from '../contexts/theme-context';
 
 
 type Props = {
-  actionSheetRef: React.RefObject<ActionSheetRef>;
+  actionSheetRef: React.RefObject<ActionSheetRef | null>;
   hazard: RoadHazard | null;
   onClose: () => void;
 };
@@ -19,6 +21,26 @@ export const HazardDetailSheet: React.FC<Props> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { deleteHazard } = useHazards();
+
+  const handleDelete = () => {
+    if (!hazard) return;
+    Alert.alert(
+      'Supprimer',
+      'Voulez-vous vraiment supprimer ce signalement ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => {
+            onClose();
+            deleteHazard(hazard.id);
+          }
+        },
+      ]
+    );
+  };
 
   return (
     <ActionSheet
@@ -68,6 +90,15 @@ export const HazardDetailSheet: React.FC<Props> = ({
         )}
 
         <View style={styles.footer}>
+          {(hazard?.is_mine) && (
+            <TouchableOpacity
+              style={[styles.closeButton, { flex: 1, backgroundColor: '#EF4444', marginBottom: 12 }]}
+              onPress={handleDelete}
+            >
+              <Text style={[styles.closeText, { color: '#fff' }]}>Supprimer</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeText}>Fermer</Text>
           </TouchableOpacity>
@@ -133,12 +164,15 @@ const makeStyles = (theme: AppTheme) =>
     },
 
     footer: {
+      flexDirection: 'row',
+      gap: 16,
       marginTop: 16,
       paddingBottom: 24,
       flex: 1,
     },
 
     closeButton: {
+      flex: 2,
       paddingHorizontal: 14,
       paddingVertical: 10,
       borderRadius: 999,

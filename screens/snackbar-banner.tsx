@@ -1,7 +1,7 @@
 // src/components/map/SnackbarBanner.tsx
 import React, { useMemo } from 'react';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
-import { AppTheme, useTheme } from './theme-context';
+import { AppTheme, useTheme } from '../contexts/theme-context';
 
 export type SnackbarState = {
   visible: boolean;
@@ -67,7 +67,7 @@ const makeStyles = (theme: AppTheme) =>
     snackbarText: {
       flex: 1,
       marginRight: 8,
-      color: theme.colors.accent,          // readable in both themes
+      color: theme.colors.success,          // readable in both themes
       fontSize: 13,
     },
 

@@ -1,4 +1,4 @@
-export const SERVER_IP = 'http://192.168.1.103:8000';
+export const SERVER_IP = 'https://dodanati.octaprize.com';
 export const SERVER_URL = SERVER_IP;
 export const BASE_URL = SERVER_URL + '/api/v1/';
 
@@ -18,8 +18,9 @@ export const ApiRoutes = {
     history: 'hazards/history',
     nearby: 'hazards/nearby',
     rate: 'hazards/:hazard_id/rate',
+    delete: 'hazards/:hazard_id'
   }
-  
+
 }
 
 // @ts-ignore

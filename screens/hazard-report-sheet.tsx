@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Region } from 'react-native-maps';
 import ActionSheet, { ActionSheetRef } from 'react-native-actions-sheet';
-import { AppTheme, useTheme } from './theme-context';
+import { AppTheme, useTheme } from '../contexts/theme-context';
 
 type RoadHazardCategoryTaxonomyItem = {
   id?: number;
@@ -21,7 +21,7 @@ type RoadHazardCategoryTaxonomyItem = {
 };
 
 type HazardReportSheetProps = {
-  actionSheetRef: React.RefObject<ActionSheetRef>;
+  actionSheetRef: React.RefObject<ActionSheetRef | null>;
   region: Region;
   categories: RoadHazardCategoryTaxonomyItem[];
   categoriesLoading: boolean;
