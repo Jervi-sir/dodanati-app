@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState } from 'react';
 import { Alert } from 'react-native';
 import api from '@/utils/api/axios-instance';
 import { ApiRoutes, buildRoute } from '@/utils/api/api';
-import { useLocation } from './location-context';
+import { useLocation } from './3-location-context';
 
 export type RouteSummaryCategory = {
   category_id: number;

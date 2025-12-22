@@ -5,9 +5,9 @@ import { Region } from 'react-native-maps';
 
 import api from '@/utils/api/axios-instance';
 import { ApiRoutes, buildRoute } from '@/utils/api/api';
-import { useDevice } from './device-context';
-import { useLocation } from './location-context';
-import { useUI } from './ui-context';
+import { useDevice } from './2-device-context';
+import { useLocation } from './3-location-context';
+import { useUI } from './4-ui-context';
 
 export type RoadHazardCategoryTaxonomyItem = {
   id?: number;

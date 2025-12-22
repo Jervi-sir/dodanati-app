@@ -1,7 +1,7 @@
 // src/components/map/SnackbarBanner.tsx
+import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import React, { useMemo } from 'react';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
-import { AppTheme, useTheme } from '../contexts/theme-context';
 
 export type SnackbarState = {
   visible: boolean;

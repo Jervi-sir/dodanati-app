@@ -12,8 +12,8 @@ import ActionSheet, { ActionSheetRef, FlatList } from 'react-native-actions-shee
 
 import api from '@/utils/api/axios-instance';
 import { ApiRoutes, buildRoute } from '@/utils/api/api';
-import { RoadHazard } from '../contexts/hazard-context';
-import { AppTheme, useTheme } from '../contexts/theme-context';
+import { RoadHazard } from '@/contexts/5-hazard-context';
+import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 
 export type HazardHistoryItem = {
   id: number;

@@ -3,9 +3,8 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ActionSheet, { ActionSheetRef } from 'react-native-actions-sheet';
 import { Alert } from 'react-native';
-import { useHazards } from '../contexts/hazard-context';
-import { RoadHazard } from '../contexts/hazard-context';
-import { AppTheme, useTheme } from '../contexts/theme-context';
+import { RoadHazard, useHazards } from '@/contexts/5-hazard-context';
+import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 
 
 type Props = {

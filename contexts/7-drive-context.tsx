@@ -3,9 +3,9 @@ import { Alert } from 'react-native';
 import * as Speech from 'expo-speech';
 import { useKeepAwake } from 'expo-keep-awake';
 import * as Location from 'expo-location';
-import { useLocation } from './location-context';
-import { useHazards } from './hazard-context';
 import { getDistance, getRhumbLineBearing } from 'geolib';
+import { useHazards } from './5-hazard-context';
+import { useLocation } from './3-location-context';
 
 type DriveContextType = {
   isDriveMode: boolean;

@@ -1,12 +1,12 @@
-import { MapScreen } from './screens/map-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ThemeProvider } from './contexts/theme-context';
-import { DeviceProvider } from './contexts/device-context';
-import { LocationProvider } from './contexts/location-context';
-import { RouteProvider } from './contexts/route-context';
-import { DriveProvider } from './contexts/drive-context';
-import { HazardProvider } from './contexts/hazard-context';
-import { UIProvider } from './contexts/ui-context';
+import { ThemeProvider } from './contexts/1-theme-context';
+import { DeviceProvider } from './contexts/2-device-context';
+import { LocationProvider } from './contexts/3-location-context';
+import { UIProvider } from './contexts/4-ui-context';
+import { HazardProvider } from './contexts/5-hazard-context';
+import { RouteProvider } from './contexts/6-route-context';
+import { DriveProvider } from './contexts/7-drive-context';
+import { MapScreen } from './screens/map-screen';
 
 export default function App() {
   return (

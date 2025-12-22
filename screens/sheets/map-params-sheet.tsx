@@ -7,8 +7,8 @@ import {
   View,
 } from 'react-native';
 import ActionSheet, { ActionSheetRef } from 'react-native-actions-sheet';
-import { MapProviderKind, useLocation } from '../contexts/location-context';
-import { useTheme, AppTheme, ThemeMode } from '../contexts/theme-context';
+import { MapProviderKind, useLocation } from '@/contexts/3-location-context';
+import { useTheme, AppTheme, ThemeMode } from '@/contexts/1-theme-context';
 
 type MapParamsSheetProps = {
   actionSheetRef: React.RefObject<ActionSheetRef | null>;

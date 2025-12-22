@@ -1,7 +1,7 @@
+import { AppTheme, useTheme } from '@/contexts/1-theme-context';
+import { RouteSummary } from '@/contexts/6-route-context';
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { RouteSummary } from '../contexts/route-context';
-import { AppTheme, useTheme } from '../contexts/theme-context';
 
 type Props = {
   routeSummary: RouteSummary | null;

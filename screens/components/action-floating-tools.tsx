@@ -4,24 +4,24 @@ import HoleIcon from '@/assets/icons/hole-icon';
 import SettingsIcon from '@/assets/icons/settings-icon';
 import SpeedBumpIcon from '@/assets/icons/speed-bump-icon';
 import StopIcon from '@/assets/icons/stop-icon';
-import { useDevice } from '@/contexts/device-context';
-import { useDrive } from '@/contexts/drive-context';
-import { useHazards } from '@/contexts/hazard-context';
-import { useLocation } from '@/contexts/location-context';
-import { useTheme } from '@/contexts/theme-context';
-import { useUI } from '@/contexts/ui-context';
+import { useTheme } from '@/contexts/1-theme-context';
+import { useDevice } from '@/contexts/2-device-context';
+import { useLocation } from '@/contexts/3-location-context';
+import { useUI } from '@/contexts/4-ui-context';
+import { useHazards } from '@/contexts/5-hazard-context';
+import { useRoute } from '@/contexts/6-route-context';
+import { useDrive } from '@/contexts/7-drive-context';
 import React from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteSummarySection } from './route-summary';
-import { useRoute } from '@/contexts/route-context';
 
 export const ActionFloatingTools = () => {
   const { openParamsSheet, openReportSheet } = useUI();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { isDriveMode, toggleDriveMode } = useDrive();
-  const { hazardsLoading, handleQuickReport } = useHazards();
+  const { hazardsLoading, handleQuickReport, mode: hazardMode, totalInRadius, } = useHazards();
   const { bootLoading } = useDevice();
   const { locationLoading, recenterOnUser, isSimulatingLocation, toggleSimulationMode } = useLocation();
   const { routeSummary, routeLoading, clearRoute } = useRoute();
@@ -120,7 +120,7 @@ export const ActionFloatingTools = () => {
         {/* Quick Actions (Inline Row) */}
         <View style={{
           gap: 10,
-          paddingBottom: 30,
+          paddingBottom: 10,
           alignItems: 'flex-end'
         }}>
 
@@ -165,6 +165,28 @@ export const ActionFloatingTools = () => {
                   حفرة
                 </Text>
               </TouchableOpacity>
+
+              {/* Optional: top badge showing total hazards in radius */}
+              <View style={{
+                alignSelf: 'center',
+                zIndex: 20,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 999,
+                backgroundColor: theme.mode === 'dark' ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.85)',
+                borderWidth: 1,
+                borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+              }}>
+                <Text style={{
+                  fontSize: 12,
+                  color: theme.mode === 'dark' ? '#E5E7EB' : '#111827',
+                  fontWeight: '600',
+                }}>
+                  {hazardMode === 'clusters' ? 'Vue globale' : 'Vue détaillée'} • Total: {totalInRadius}
+                </Text>
+              </View>
+
+
             </>
           )}
         </View>
@@ -180,11 +202,10 @@ export const ActionFloatingTools = () => {
             <CenterMapIcon size={22} color={theme.colors.text} />
           </TouchableOpacity>
 
-          {/* Reuse CenterMapIcon but maybe it represents 'Pick Location' */}
           {/* <TouchableOpacity
             style={[
-              iconBtnStyle,
-              isSimulatingLocation && { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent }
+              iconBtnStyle, { backgroundColor: theme.colors.danger },
+              isSimulatingLocation && { backgroundColor: theme.colors.success, borderColor: theme.colors.success }
             ]}
             onPress={toggleSimulationMode}
             activeOpacity={0.8}

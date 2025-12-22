@@ -3,20 +3,18 @@ import React, { useCallback, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { StatusBar } from 'expo-status-bar';
-
-import { useDevice } from '../contexts/device-context';
-import { useLocation } from '../contexts/location-context';
-import { useUI } from '../contexts/ui-context';
-import { useHazards, RoadHazard, HazardCluster } from '../contexts/hazard-context';
-import { useRoute } from '../contexts/route-context';
-import { AppTheme, useTheme } from '../contexts/theme-context';
-
-import { SnackbarBanner } from './snackbar-banner';
-import { HazardReportSheet } from './hazard-report-sheet';
-import { HazardDetailSheet } from './hazard-detail-sheet';
-import { MapParamsSheet } from './map-params-sheet';
-import { HazardHistorySheet, HazardHistoryItem } from './hazard-history-sheet';
-import { ActionFloatingTools } from './action-floating-tools';
+import { HazardCluster, RoadHazard, useHazards } from '@/contexts/5-hazard-context';
+import { useDevice } from '@/contexts/2-device-context';
+import { useLocation } from '@/contexts/3-location-context';
+import { useRoute } from '@/contexts/6-route-context';
+import { useUI } from '@/contexts/4-ui-context';
+import { ActionFloatingTools } from './components/action-floating-tools';
+import { SnackbarBanner } from './components/snackbar-banner';
+import { HazardReportSheet } from './sheets/hazard-report-sheet';
+import { HazardDetailSheet } from './sheets/hazard-detail-sheet';
+import { MapParamsSheet } from './sheets/map-params-sheet';
+import { HazardHistoryItem, HazardHistorySheet } from './sheets/hazard-history-sheet';
+import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 
 const DARK_MAP_STYLE = [
   { elementType: 'geometry', stylers: [{ color: '#202124' }] },
@@ -86,7 +84,6 @@ export const MapScreen = () => {
     hazards,
     clusters,
     mode: hazardMode,
-    totalInRadius,
     categories,
     categoriesLoading,
     selectedHazard,
@@ -168,13 +165,6 @@ export const MapScreen = () => {
           <Text style={{ marginTop: 8 }}>Initialisation…</Text>
         </View>
       )}
-
-      {/* Optional: top badge showing total hazards in radius */}
-      <View style={styles.topBadge}>
-        <Text style={styles.topBadgeText}>
-          {hazardMode === 'clusters' ? 'Vue globale' : 'Vue détaillée'} • Total: {totalInRadius}
-        </Text>
-      </View>
 
       <MapView
         // @ts-ignore
@@ -278,23 +268,6 @@ const makeStyles = (theme: AppTheme) =>
       backgroundColor: theme.mode === 'light' ? '#FFFFFFDD' : 'rgba(0,0,0,0.55)',
     },
 
-    topBadge: {
-      position: 'absolute',
-      top: 10,
-      alignSelf: 'center',
-      zIndex: 20,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 999,
-      backgroundColor: theme.mode === 'dark' ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.85)',
-      borderWidth: 1,
-      borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-    },
-    topBadgeText: {
-      fontSize: 12,
-      color: theme.mode === 'dark' ? '#E5E7EB' : '#111827',
-      fontWeight: '600',
-    },
   });
 
 const stylesCluster = StyleSheet.create({

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Region } from 'react-native-maps';
 import ActionSheet, { ActionSheetRef } from 'react-native-actions-sheet';
-import { AppTheme, useTheme } from '../contexts/theme-context';
+import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 
 type RoadHazardCategoryTaxonomyItem = {
   id?: number;
