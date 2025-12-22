@@ -235,12 +235,37 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
+  // Calculate viewport bounds from region
+  const calculateViewportBounds = (region: Region) => {
+    const latDelta = region.latitudeDelta;
+    const lngDelta = region.longitudeDelta;
+    return {
+      minLat: region.latitude - latDelta / 2,
+      maxLat: region.latitude + latDelta / 2,
+      minLng: region.longitude - lngDelta / 2,
+      maxLng: region.longitude + lngDelta / 2,
+    };
+  };
+
   // MAIN fetch: returns either points or clusters based on backend mode
-  const fetchNearby = useCallback(async (lat: number, lng: number, zoom: number) => {
+  const fetchNearby = useCallback(async (lat: number, lng: number, zoom: number, currentRegion: Region) => {
     setHazardsLoading(true);
     try {
+      // Calculate viewport bounds
+      const bounds = calculateViewportBounds(currentRegion);
+
       const res = await api.get(buildRoute(ApiRoutes.hazards.nearby), {
-        params: { lat, lng, radius_km: 10, zoom, mode: 'auto' },
+        params: {
+          lat,
+          lng,
+          zoom,
+          mode: 'auto',
+          // Send viewport bounds instead of radius
+          minLat: bounds.minLat,
+          maxLat: bounds.maxLat,
+          minLng: bounds.minLng,
+          maxLng: bounds.maxLng,
+        },
         headers: { 'X-Requires-Auth': false },
       });
 
@@ -277,7 +302,8 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const z = zoomFromRegion(region);
 
-    // Avoid fetching if moved < 2km AND zoom unchanged enough
+    // Avoid fetching if moved < 3km AND zoom unchanged enough
+    // Increased threshold since we're fetching viewport-based data
     if (lastFetchRef.current) {
       const dist = getDistanceKm(
         lastFetchRef.current.lat,
@@ -293,7 +319,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     const timer = setTimeout(() => {
-      fetchNearby(region.latitude, region.longitude, z);
+      fetchNearby(region.latitude, region.longitude, z, region);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -394,7 +420,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // refetch after failure
       if (region) {
         const z = zoomFromRegion(region);
-        fetchNearby(region.latitude, region.longitude, z);
+        fetchNearby(region.latitude, region.longitude, z, region);
       }
     }
   };
@@ -402,7 +428,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const refreshHazards = useCallback(() => {
     if (!region) return;
     const z = zoomFromRegion(region);
-    fetchNearby(region.latitude, region.longitude, z);
+    fetchNearby(region.latitude, region.longitude, z, region);
   }, [region, fetchNearby]);
 
   return (

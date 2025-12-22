@@ -204,7 +204,7 @@ export const ActionFloatingTools = () => {
             <CenterMapIcon size={22} color={theme.colors.text} />
           </TouchableOpacity>
 
-          {/* <TouchableOpacity
+          <TouchableOpacity
             style={[
               iconBtnStyle, { backgroundColor: theme.colors.danger },
               isSimulatingLocation && { backgroundColor: theme.colors.success, borderColor: theme.colors.success }
@@ -213,7 +213,7 @@ export const ActionFloatingTools = () => {
             activeOpacity={0.8}
           >
             <CenterMapIcon size={22} color={isSimulatingLocation ? '#FFF' : theme.colors.text} />
-          </TouchableOpacity> */}
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={{

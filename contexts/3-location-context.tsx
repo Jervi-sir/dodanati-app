@@ -148,7 +148,14 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       longitudeDelta: 0.03,
     };
     setRegion(newRegion);
-    mapRef.current?.animateToRegion(newRegion, 500);
+    // Use animateCamera to ensure the location is centered
+    mapRef.current?.animateCamera({
+      center: {
+        latitude: currentLat,
+        longitude: currentLng,
+      },
+      zoom: 15, // adjust zoom level as needed
+    }, { duration: 500 });
   }, [currentLat, currentLng]);
 
   return (
