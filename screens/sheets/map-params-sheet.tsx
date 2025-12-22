@@ -1,34 +1,29 @@
 // src/components/map/MapParamsSheet.tsx
 import React, { useMemo } from 'react';
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import ActionSheet, { ActionSheetRef } from 'react-native-actions-sheet';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import ActionSheet, { SheetProps } from 'react-native-actions-sheet';
 import { MapProviderKind, useLocation } from '@/contexts/3-location-context';
 import { useTheme, AppTheme, ThemeMode } from '@/contexts/1-theme-context';
+import { SheetManager } from 'react-native-actions-sheet';
 
-type MapParamsSheetProps = {
-  actionSheetRef: React.RefObject<ActionSheetRef | null>;
-  onShowHistory: () => void;
-};
-
-export const MapParamsSheet: React.FC<MapParamsSheetProps> = ({
-  actionSheetRef,
-  onShowHistory,
-}) => {
-  const { theme, mode, setMode } = useTheme();         // 👈 use current mode here
+export const MapParamsSheet: React.FC<SheetProps> = (props) => {
+  const { theme, mode, setMode } = useTheme();
   const { mapProvider, setMapProvider } = useLocation();
 
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
-  const close = () => actionSheetRef.current?.hide();
+  const close = () => {
+    // safest in registerable mode (no refs)
+    SheetManager.hide(props.sheetId);
+  };
+
+  // Optional: allow caller to pass payload: { onShowHistory: () => void }
+  const onShowHistory =
+    (props.payload as { onShowHistory?: () => void } | undefined)?.onShowHistory;
 
   return (
     <ActionSheet
-      ref={actionSheetRef}
+      id={props.sheetId}
       gestureEnabled
       containerStyle={styles.sheetContainer}
       indicatorStyle={styles.sheetIndicator}
@@ -44,7 +39,7 @@ export const MapParamsSheet: React.FC<MapParamsSheetProps> = ({
         <Text style={styles.sectionTitle}>Apparence</Text>
         <View style={styles.chipRow}>
           {(['light', 'dark'] as ThemeMode[]).map((value) => {
-            const active = mode === value; // 👈 now uses real theme mode
+            const active = mode === value;
             return (
               <TouchableOpacity
                 key={value}
@@ -52,12 +47,7 @@ export const MapParamsSheet: React.FC<MapParamsSheetProps> = ({
                 style={[styles.chip, active && styles.chipActive]}
                 activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.chipText,
-                    active && styles.chipTextActive,
-                  ]}
-                >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
                   {value === 'light' ? 'Thème clair' : 'Thème sombre'}
                 </Text>
               </TouchableOpacity>
@@ -79,12 +69,7 @@ export const MapParamsSheet: React.FC<MapParamsSheetProps> = ({
                 style={[styles.chip, active && styles.chipActive]}
                 activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.chipText,
-                    active && styles.chipTextActive,
-                  ]}
-                >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
                   {value === 'system' ? 'Par défaut' : 'Google Maps'}
                 </Text>
               </TouchableOpacity>
@@ -101,7 +86,10 @@ export const MapParamsSheet: React.FC<MapParamsSheetProps> = ({
           style={styles.listItem}
           onPress={() => {
             close();
-            onShowHistory();
+            // Delay to avoid sheet transition conflicts
+            setTimeout(() => {
+              SheetManager.show('hazard-history-sheet');
+            }, 400);
           }}
           activeOpacity={0.8}
         >
@@ -117,11 +105,7 @@ export const MapParamsSheet: React.FC<MapParamsSheetProps> = ({
 
       {/* Close */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={close}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.closeButton} onPress={close} activeOpacity={0.8}>
           <Text style={styles.closeButtonText}>Fermer</Text>
         </TouchableOpacity>
       </View>

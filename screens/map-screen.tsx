@@ -15,6 +15,7 @@ import { HazardDetailSheet } from './sheets/hazard-detail-sheet';
 import { MapParamsSheet } from './sheets/map-params-sheet';
 import { HazardHistoryItem, HazardHistorySheet } from './sheets/hazard-history-sheet';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
+import { SheetManager } from 'react-native-actions-sheet';
 
 const DARK_MAP_STYLE = [
   { elementType: 'geometry', stylers: [{ color: '#202124' }] },
@@ -26,31 +27,26 @@ const DARK_MAP_STYLE = [
 ];
 
 // --- Memoized Hazard Marker ---
-const HazardMarker = React.memo(
-  ({ hazard, onPress }: { hazard: RoadHazard; onPress: (h: RoadHazard) => void }) => {
-    const pinColor = useMemo(() => {
-      const slug = hazard.category?.slug;
-      if (slug === 'pothole') return '#EF4444';
-      if (slug === 'speed_bump') return '#F59E0B';
-      return hazard.severity >= 4 ? '#DC2626' : '#F59E0B';
-    }, [hazard.category?.slug, hazard.severity]);
+const HazardMarker = React.memo(({ hazard, onPress }: { hazard: RoadHazard; onPress: (h: RoadHazard) => void }) => {
+  const [track, setTrack] = React.useState(true);
 
-    return (
-      <Marker
-        coordinate={{ latitude: hazard.lat, longitude: hazard.lng }}
-        title={hazard.category?.name_fr ?? hazard.category?.name_en ?? 'Danger'}
-        description={hazard.note ?? `Signalements: ${hazard.reports_count} • Sévérité: ${hazard.severity}`}
-        pinColor={pinColor}
-        onPress={() => onPress(hazard)}
-        tracksViewChanges={false}
-      />
-    );
-  },
-  (prev, next) =>
-    prev.hazard.id === next.hazard.id &&
-    prev.hazard.reports_count === next.hazard.reports_count &&
-    prev.hazard.updated_at === next.hazard.updated_at
-);
+  React.useEffect(() => {
+    const t = setTimeout(() => setTrack(false), 800);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <Marker
+      coordinate={{ latitude: Number(hazard.lat), longitude: Number(hazard.lng) }}
+      title={hazard.category?.name_fr ?? hazard.category?.name_en ?? 'Danger'}
+      description={hazard.note ?? `Signalements: ${hazard.reports_count} • Sévérité: ${hazard.severity}`}
+      pinColor={'#F59E0B'}
+      onPress={() => onPress(hazard)}
+      tracksViewChanges={track}
+    />
+  );
+});
+
 
 // --- Memoized Cluster Marker (simple bubble) ---
 const ClusterMarker = React.memo(({ c }: { c: HazardCluster }) => {
@@ -84,17 +80,7 @@ export const MapScreen = () => {
     hazards,
     clusters,
     mode: hazardMode,
-    categories,
-    categoriesLoading,
-    selectedHazard,
     setSelectedHazard,
-    selectedCategoryId,
-    setSelectedCategoryId,
-    severity,
-    setSeverity,
-    note,
-    setNote,
-    handleSubmitHazard,
   } = useHazards();
 
   const { destination, routeSummary, selectDestination, routeCoords, clearRoute } = useRoute();
@@ -102,15 +88,6 @@ export const MapScreen = () => {
   const {
     snackbar,
     hideSnackbar,
-    hazardReportActionSheetRef,
-    openReportSheet,
-    closeReportSheet,
-    hazardSheetRef,
-    openHazardSheet,
-    closeHazardSheet,
-    paramsSheetRef,
-    historySheetRef,
-    openHistorySheet,
   } = useUI();
 
   const isLoading = bootLoading || locationLoading;
@@ -127,9 +104,9 @@ export const MapScreen = () => {
   const handleHazardPress = useCallback(
     (h: RoadHazard) => {
       setSelectedHazard(h);
-      openHazardSheet();
+      SheetManager.show('hazard-detail-sheet');
     },
-    [setSelectedHazard, openHazardSheet]
+    [setSelectedHazard]
   );
 
   const hazardMarkers = useMemo(() => {
@@ -139,21 +116,6 @@ export const MapScreen = () => {
   const clusterMarkers = useMemo(() => {
     return clusters.map((c, idx) => <ClusterMarker key={`cluster-${idx}-${c.lat}-${c.lng}`} c={c} />);
   }, [clusters]);
-
-  const handleHistoryItemPress = (item: HazardHistoryItem) => {
-    historySheetRef.current?.hide();
-    clearRoute();
-
-    const newRegion: Region = {
-      latitude: item.lat,
-      longitude: item.lng,
-      latitudeDelta: 0.03,
-      longitudeDelta: 0.03,
-    };
-
-    setRegion(newRegion);
-    mapRef.current?.animateToRegion(newRegion, 500);
-  };
 
   return (
     <View style={styles.container}>
@@ -216,38 +178,10 @@ export const MapScreen = () => {
         snackbar={snackbar}
         onPressCta={() => {
           hideSnackbar();
-          openReportSheet();
+          SheetManager.show('hazard-report-sheet');
         }}
       />
 
-      <HazardReportSheet
-        actionSheetRef={hazardReportActionSheetRef}
-        region={region}
-        categories={categories}
-        categoriesLoading={categoriesLoading}
-        selectedCategoryId={selectedCategoryId}
-        severity={severity}
-        note={note}
-        submitting={false}
-        onChangeCategory={setSelectedCategoryId}
-        onChangeSeverity={setSeverity}
-        onChangeNote={setNote}
-        onSubmit={handleSubmitHazard}
-        onCancel={closeReportSheet}
-      />
-
-      <HazardDetailSheet actionSheetRef={hazardSheetRef} hazard={selectedHazard} onClose={closeHazardSheet} />
-
-      <MapParamsSheet
-        actionSheetRef={paramsSheetRef}
-        onShowHistory={() => {
-          setTimeout(() => {
-            openHistorySheet();
-          }, 400);
-        }}
-      />
-
-      <HazardHistorySheet actionSheetRef={historySheetRef} onPressItem={handleHistoryItemPress} />
     </View>
   );
 };

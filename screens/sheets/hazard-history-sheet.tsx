@@ -8,12 +8,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import ActionSheet, { ActionSheetRef, FlatList } from 'react-native-actions-sheet';
+import ActionSheet, { FlatList, SheetProps } from 'react-native-actions-sheet';
 
 import api from '@/utils/api/axios-instance';
 import { ApiRoutes, buildRoute } from '@/utils/api/api';
 import { RoadHazard } from '@/contexts/5-hazard-context';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
+import { SheetManager } from 'react-native-actions-sheet';
 
 export type HazardHistoryItem = {
   id: number;
@@ -34,17 +35,16 @@ export type HazardHistoryItem = {
   hazard?: RoadHazard | null;
 };
 
-type HazardHistorySheetProps = {
-  actionSheetRef: React.RefObject<ActionSheetRef | null>;
+type Payload = {
   onPressItem?: (item: HazardHistoryItem) => void;
 };
 
-export const HazardHistorySheet: React.FC<HazardHistorySheetProps> = ({
-  actionSheetRef,
-  onPressItem,
-}) => {
+export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+
+  const payload = props.payload as Payload | undefined;
+  const onPressItem = payload?.onPressItem;
 
   const [items, setItems] = useState<HazardHistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,16 +60,15 @@ export const HazardHistorySheet: React.FC<HazardHistorySheetProps> = ({
       pageToLoad === 1 ? setLoading(true) : setLoadingMore(true);
 
       try {
-        const res = await api.get(
-          buildRoute(ApiRoutes.hazards.history),
-          { params: { page: pageToLoad } },
-        );
+        const res = await api.get(buildRoute(ApiRoutes.hazards.history), {
+          params: { page: pageToLoad },
+        });
 
         const data: HazardHistoryItem[] = res?.data?.data ?? [];
         const meta = res?.data?.meta ?? {};
 
         setItems((prev) =>
-          pageToLoad === 1 || opts?.replace ? data : [...prev, ...data],
+          pageToLoad === 1 || opts?.replace ? data : [...prev, ...data]
         );
         setPage(pageToLoad);
         setNextPage(meta.next_page ?? null);
@@ -81,14 +80,12 @@ export const HazardHistorySheet: React.FC<HazardHistorySheetProps> = ({
         setRefreshing(false);
       }
     },
-    [loading, loadingMore, refreshing],
+    [loading, loadingMore, refreshing]
   );
 
-  // Called by parent when opening sheet
+  // ✅ registerable: ActionSheet calls this automatically
   const handleOnOpen = () => {
-    if (!items.length) {
-      fetchPage(1);
-    }
+    if (!items.length) fetchPage(1);
   };
 
   const handleRefresh = () => {
@@ -108,8 +105,7 @@ export const HazardHistorySheet: React.FC<HazardHistorySheetProps> = ({
       item.category?.slug ||
       'Danger';
 
-    const createdAt =
-      item.created_at?.slice(0, 16).replace('T', ' ') ?? '';
+    const createdAt = item.created_at?.slice(0, 16).replace('T', ' ') ?? '';
 
     return (
       <TouchableOpacity
@@ -146,10 +142,10 @@ export const HazardHistorySheet: React.FC<HazardHistorySheetProps> = ({
 
   return (
     <ActionSheet
-      ref={actionSheetRef}
+      id={props.sheetId}
       gestureEnabled
       containerStyle={styles.sheetContainer}
-      indicatorStyle={{ width: 44, height: 5, borderRadius: 3 }}
+      indicatorStyle={styles.sheetIndicator}
       onOpen={handleOnOpen}
       snapPoints={[70]}
     >
@@ -171,6 +167,15 @@ export const HazardHistorySheet: React.FC<HazardHistorySheetProps> = ({
           <Text style={styles.emptySubtitle}>
             Utilisez “Signaler un danger” pour ajouter votre premier point.
           </Text>
+
+          {/* optional close button */}
+          <TouchableOpacity
+            style={{ marginTop: 12, alignSelf: 'flex-start' }}
+            onPress={() => SheetManager.hide(props.sheetId)}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: theme.colors.textMuted }}>Fermer</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -188,7 +193,9 @@ export const HazardHistorySheet: React.FC<HazardHistorySheetProps> = ({
               <View style={styles.footerLoader}>
                 <ActivityIndicator size="small" />
               </View>
-            ) : <View style={{ height: 230 }} />
+            ) : (
+              <View style={{ height: 230 }} />
+            )
           }
         />
       )}
@@ -277,7 +284,7 @@ const makeStyles = (theme: AppTheme) =>
       width: 10,
       height: 10,
       borderRadius: 5,
-      backgroundColor: theme.colors.danger, // red in both themes
+      backgroundColor: theme.colors.danger,
     },
     rowTitle: {
       fontSize: 14,

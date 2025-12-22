@@ -1,29 +1,25 @@
 // src/components/map/HazardDetailSheet.tsx
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import ActionSheet, { ActionSheetRef } from 'react-native-actions-sheet';
-import { Alert } from 'react-native';
-import { RoadHazard, useHazards } from '@/contexts/5-hazard-context';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import ActionSheet, { SheetProps } from 'react-native-actions-sheet';
+import { useHazards } from '@/contexts/5-hazard-context';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
+import { useUI } from '@/contexts/4-ui-context';
 
-
-type Props = {
-  actionSheetRef: React.RefObject<ActionSheetRef | null>;
-  hazard: RoadHazard | null;
-  onClose: () => void;
-};
-
-export const HazardDetailSheet: React.FC<Props> = ({
-  actionSheetRef,
-  hazard,
-  onClose,
-}) => {
+export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const { deleteHazard } = useHazards();
+
+  const {
+    selectedHazard,
+    deleteHazard,
+  } = useHazards();
+
+  const { closeHazardSheet } = useUI();
 
   const handleDelete = () => {
-    if (!hazard) return;
+    if (!selectedHazard) return;
+
     Alert.alert(
       'Supprimer',
       'Voulez-vous vraiment supprimer ce signalement ?',
@@ -33,9 +29,9 @@ export const HazardDetailSheet: React.FC<Props> = ({
           text: 'Supprimer',
           style: 'destructive',
           onPress: () => {
-            onClose();
-            deleteHazard(hazard.id);
-          }
+            closeHazardSheet();
+            deleteHazard(selectedHazard.id);
+          },
         },
       ]
     );
@@ -43,7 +39,8 @@ export const HazardDetailSheet: React.FC<Props> = ({
 
   return (
     <ActionSheet
-      ref={actionSheetRef}
+      // ✅ registerable sheet
+      id={props.sheetId}
       gestureEnabled
       indicatorStyle={styles.sheetIndicator}
       containerStyle={styles.sheetContainer}
@@ -51,54 +48,57 @@ export const HazardDetailSheet: React.FC<Props> = ({
     >
       <View style={styles.container}>
         <Text style={styles.title}>
-          {hazard?.category?.name_fr ||
-            hazard?.category?.name_en ||
+          {selectedHazard?.category?.name_fr ||
+            selectedHazard?.category?.name_en ||
             'Danger routier'}
         </Text>
 
-        {hazard && (
+        {selectedHazard && (
           <>
             <Text style={styles.subtitle}>
-              Coordonnées: {hazard.lat.toFixed(5)}, {hazard.lng.toFixed(5)}
+              Coordonnées: {selectedHazard.lat.toFixed(5)}, {selectedHazard.lng.toFixed(5)}
             </Text>
 
             <View style={styles.section}>
               <Text style={styles.label}>Sévérité</Text>
-              <Text style={styles.value}>{hazard.severity} / 5</Text>
+              <Text style={styles.value}>{selectedHazard.severity} / 5</Text>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.label}>Signalements</Text>
-              <Text style={styles.value}>{hazard.reports_count}</Text>
+              <Text style={styles.value}>{selectedHazard.reports_count}</Text>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.label}>Dernier signalement</Text>
               <Text style={styles.value}>
-                {hazard.last_reported_at || '—'}
+                {selectedHazard.last_reported_at || '—'}
               </Text>
             </View>
 
-            {hazard.note ? (
+            {selectedHazard.note ? (
               <View style={styles.section}>
                 <Text style={styles.label}>Note</Text>
-                <Text style={styles.noteText}>{hazard.note}</Text>
+                <Text style={styles.noteText}>{selectedHazard.note}</Text>
               </View>
             ) : null}
           </>
         )}
 
         <View style={styles.footer}>
-          {(hazard?.is_mine) && (
+          {!!selectedHazard?.is_mine && (
             <TouchableOpacity
-              style={[styles.closeButton, { flex: 1, backgroundColor: '#EF4444', marginBottom: 12 }]}
+              style={[
+                styles.closeButton,
+                { flex: 1, backgroundColor: '#EF4444', marginBottom: 12 },
+              ]}
               onPress={handleDelete}
             >
               <Text style={[styles.closeText, { color: '#fff' }]}>Supprimer</Text>
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <TouchableOpacity style={styles.closeButton} onPress={closeHazardSheet}>
             <Text style={styles.closeText}>Fermer</Text>
           </TouchableOpacity>
         </View>
@@ -138,7 +138,7 @@ const makeStyles = (theme: AppTheme) =>
     subtitle: {
       marginTop: 4,
       fontSize: 12,
-      color: theme.colors.textMuted,     // adjusts by theme
+      color: theme.colors.textMuted,
     },
 
     section: {
@@ -175,7 +175,7 @@ const makeStyles = (theme: AppTheme) =>
       paddingHorizontal: 14,
       paddingVertical: 10,
       borderRadius: 999,
-      backgroundColor: theme.colors.accent,  // blue on light/dark
+      backgroundColor: theme.colors.accent,
       height: 40,
       justifyContent: 'center',
       alignItems: 'center',
@@ -187,7 +187,7 @@ const makeStyles = (theme: AppTheme) =>
     },
 
     closeText: {
-      color: theme.colors.background,       // contrast auto inverse
+      color: theme.colors.background,
       fontWeight: '500',
       fontSize: 13,
     },

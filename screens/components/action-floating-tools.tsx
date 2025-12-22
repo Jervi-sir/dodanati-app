@@ -15,9 +15,9 @@ import React from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteSummarySection } from './route-summary';
+import { SheetManager } from 'react-native-actions-sheet';
 
 export const ActionFloatingTools = () => {
-  const { openParamsSheet, openReportSheet } = useUI();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { isDriveMode, toggleDriveMode } = useDrive();
@@ -90,7 +90,9 @@ export const ActionFloatingTools = () => {
 
           <TouchableOpacity
             style={iconBtnStyle}
-            onPress={openParamsSheet}
+            onPress={() => {
+              SheetManager.show('map-params-sheet')
+            }}
             activeOpacity={0.8}
           >
             <SettingsIcon size={22} color={theme.colors.text} />
@@ -228,7 +230,10 @@ export const ActionFloatingTools = () => {
               shadowRadius: 4,
               elevation: 5,
             }}
-            onPress={openReportSheet}
+            onPress={() => {
+              console.log('asd:', JSON.stringify(123, null, 2));
+              SheetManager.show('hazard-report-sheet')
+            }}
             activeOpacity={0.9}
           >
             <Text style={{

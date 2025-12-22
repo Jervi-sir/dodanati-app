@@ -9,9 +9,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Region } from 'react-native-maps';
-import ActionSheet, { ActionSheetRef } from 'react-native-actions-sheet';
+import ActionSheet, { SheetManager, SheetProps } from 'react-native-actions-sheet';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
+import { useLocation } from '@/contexts/3-location-context';
+import { useHazards } from '@/contexts/5-hazard-context';
+import { useUI } from '@/contexts/4-ui-context';
 
 type RoadHazardCategoryTaxonomyItem = {
   id?: number;
@@ -20,42 +22,30 @@ type RoadHazardCategoryTaxonomyItem = {
   icon?: string | null;
 };
 
-type HazardReportSheetProps = {
-  actionSheetRef: React.RefObject<ActionSheetRef | null>;
-  region: Region;
-  categories: RoadHazardCategoryTaxonomyItem[];
-  categoriesLoading: boolean;
-  selectedCategoryId: number | null;
-  severity: number;
-  note: string;
-  submitting: boolean;
-  onChangeCategory: (id: number) => void;
-  onChangeSeverity: (lvl: number) => void;
-  onChangeNote: (val: string) => void;
-  onSubmit: () => void;
-  onCancel: () => void;
-};
+// ✅ Registerable Sheet: receives SheetProps (no ref prop needed)
+export const HazardReportSheet: React.FC<SheetProps> = (props) => {
+  const submitting = false;
 
-export const HazardReportSheet: React.FC<HazardReportSheetProps> = ({
-  actionSheetRef,
-  region,
-  categories,
-  categoriesLoading,
-  selectedCategoryId,
-  severity,
-  note,
-  submitting,
-  onChangeCategory,
-  onChangeSeverity,
-  onChangeNote,
-  onSubmit,
-  onCancel,
-}) => {
+  const { region } = useLocation();
+  const {
+    categories,
+    categoriesLoading,
+    selectedCategoryId,
+    setSelectedCategoryId,
+    setSeverity,
+    severity,
+    setNote,
+    note,
+    handleSubmitHazard,
+  } = useHazards();
+
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+
   return (
     <ActionSheet
-      ref={actionSheetRef}
+      // ✅ important for registerable sheets
+      id={props.sheetId}
       gestureEnabled
       containerStyle={styles.sheetContainer}
       indicatorStyle={styles.sheetIndicator}
@@ -74,20 +64,23 @@ export const HazardReportSheet: React.FC<HazardReportSheetProps> = ({
       {/* Categories */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Catégorie</Text>
+
         {categoriesLoading && (
           <View style={styles.inlineLoader}>
             <ActivityIndicator size="small" />
             <Text style={styles.inlineLoaderText}>Chargement…</Text>
           </View>
         )}
+
         <View style={styles.chipRow}>
           {categories.map((cat) => {
             if (!cat.id) return null;
             const active = selectedCategoryId === cat.id;
+
             return (
               <TouchableOpacity
                 key={cat.id}
-                onPress={() => onChangeCategory(cat.id!)}
+                onPress={() => setSelectedCategoryId(cat.id!)}
                 style={[styles.chip, active && styles.chipActive]}
                 activeOpacity={0.8}
               >
@@ -109,7 +102,7 @@ export const HazardReportSheet: React.FC<HazardReportSheetProps> = ({
             return (
               <TouchableOpacity
                 key={lvl}
-                onPress={() => onChangeSeverity(lvl)}
+                onPress={() => setSeverity(lvl)}
                 style={[styles.chipSmall, active && styles.chipActive]}
                 activeOpacity={0.8}
               >
@@ -127,7 +120,7 @@ export const HazardReportSheet: React.FC<HazardReportSheetProps> = ({
         <Text style={styles.sectionTitle}>Note (optionnel)</Text>
         <TextInput
           value={note}
-          onChangeText={onChangeNote}
+          onChangeText={setNote}
           placeholder="Ex : très haut, invisible la nuit…"
           multiline
           style={styles.textArea}
@@ -139,7 +132,7 @@ export const HazardReportSheet: React.FC<HazardReportSheetProps> = ({
       <View style={styles.sheetButtons}>
         <TouchableOpacity
           style={[styles.submitButton, submitting && styles.buttonDisabled]}
-          onPress={onSubmit}
+          onPress={handleSubmitHazard}
           disabled={submitting}
           activeOpacity={0.8}
         >
@@ -150,7 +143,9 @@ export const HazardReportSheet: React.FC<HazardReportSheetProps> = ({
 
         <TouchableOpacity
           style={[styles.cancelButton, submitting && styles.buttonDisabled]}
-          onPress={onCancel}
+          onPress={() => {
+            SheetManager.hide('hazard-report-sheet');
+          }}
           disabled={submitting}
           activeOpacity={0.8}
         >
@@ -160,6 +155,7 @@ export const HazardReportSheet: React.FC<HazardReportSheetProps> = ({
     </ActionSheet>
   );
 };
+
 const makeStyles = (theme: AppTheme) =>
   StyleSheet.create({
     sheetContainer: {
@@ -231,7 +227,7 @@ const makeStyles = (theme: AppTheme) =>
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 999,
-      backgroundColor: theme.colors.accentSoft, // auto: light = gray, dark = gray-700ish
+      backgroundColor: theme.colors.accentSoft,
     },
     chipSmall: {
       paddingHorizontal: 10,
@@ -240,7 +236,7 @@ const makeStyles = (theme: AppTheme) =>
       backgroundColor: theme.colors.accentSoft,
     },
     chipActive: {
-      backgroundColor: theme.colors.accent, // blue (light+dark)
+      backgroundColor: theme.colors.accent,
     },
     chipText: {
       fontSize: 13,
@@ -273,7 +269,7 @@ const makeStyles = (theme: AppTheme) =>
     submitButton: {
       height: 48,
       borderRadius: 999,
-      backgroundColor: theme.colors.accent,     // blue everywhere
+      backgroundColor: theme.colors.accent,
       alignItems: 'center',
       justifyContent: 'center',
     },
