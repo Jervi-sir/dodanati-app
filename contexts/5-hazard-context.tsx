@@ -249,14 +249,14 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (payload?.mode === 'points') {
         setMode('points');
         setHazards(payload.data || []);
-        setClusters([]); // optional: clear clusters when in points
+        setClusters([]); // Clear clusters when in points mode
         setTotalInRadius(payload.meta?.total_in_radius ?? 0);
         cacheHazards(payload.data || []);
       } else if (payload?.mode === 'clusters') {
         setMode('clusters');
         setClusters(payload.data || []);
-        // keep hazards as-is or clear them:
-        // setHazards([]);
+        // Keep hazards as-is OR clear them - let's keep them for now
+        // setHazards([]); // Uncomment if you want to clear hazards in cluster mode
         setTotalInRadius(payload.meta?.total_in_radius ?? 0);
         cacheClusters(payload.data || []);
       } else {
@@ -289,8 +289,6 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const zoomDiff = Math.abs(lastFetchRef.current.zoom - z);
 
       // tweak thresholds:
-      // - distance threshold
-      // - zoom change threshold
       if (dist < 2 && zoomDiff < 1) return;
     }
 
@@ -331,7 +329,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       showSnackbar('Envoi en cours...');
 
-      const res = await api.post(buildRoute(ApiRoutes.hazards.index), payload);
+      const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
       const newHazard: RoadHazard = res.data.data;
 
       // If you're currently in clusters mode, you can still upsert locally,
@@ -376,7 +374,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         locale: 'fr-DZ',
       };
 
-      const res = await api.post(buildRoute(ApiRoutes.hazards.index), payload);
+      const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
       upsertHazard(res.data.data);
     } catch (err) {
       console.error('Quick hazard error', err);

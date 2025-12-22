@@ -1,7 +1,9 @@
 // src/components/map/SnackbarBanner.tsx
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
+import { useUI } from '@/contexts/4-ui-context';
 import React, { useMemo } from 'react';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { SheetManager } from 'react-native-actions-sheet';
 
 export type SnackbarState = {
   visible: boolean;
@@ -9,17 +11,17 @@ export type SnackbarState = {
   ctaLabel?: string;
 } | null;
 
-type SnackbarBannerProps = {
-  snackbar: SnackbarState;
-  onPressCta?: () => void;
-};
 
-export const SnackbarBanner: React.FC<SnackbarBannerProps> = ({
-  snackbar,
-  onPressCta,
-}) => {
+export const SnackbarBanner = () => {
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { snackbar, hideSnackbar, } = useUI();
+
+  const onPressCta = () => {
+    hideSnackbar();
+    SheetManager.show('hazard-report-sheet');
+  }
+
   if (!snackbar?.visible) return null;
 
   return (

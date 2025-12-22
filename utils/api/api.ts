@@ -14,12 +14,11 @@ export const ApiRoutes = {
   hazardsRouteSummary: 'hazards-route-summary',
 
   hazards: {
-    index: 'hazards',
+    store: 'hazards',
     history: 'hazards/history',
     nearby: 'hazards/nearby',
-    inBounds: 'hazards/in-bounds',
 
-    rate: 'hazards/:hazard_id/rate',
+    update: 'hazards/:hazard_id',
     delete: 'hazards/:hazard_id'
   }
 
