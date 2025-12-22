@@ -8,6 +8,7 @@ import { ApiRoutes, buildRoute } from '@/utils/api/api';
 import { useDevice } from './2-device-context';
 import { useLocation } from './3-location-context';
 import { useUI } from './4-ui-context';
+import { SheetManager } from 'react-native-actions-sheet';
 
 export type RoadHazardCategoryTaxonomyItem = {
   id?: number;
@@ -141,7 +142,7 @@ export const zoomFromRegion = (region: Region) => {
 export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { deviceUuid } = useDevice();
   const { currentLat, currentLng, region } = useLocation();
-  const { showSnackbar, closeReportSheet } = useUI();
+  const { showSnackbar } = useUI();
 
   const [categories, setCategories] = useState<RoadHazardCategoryTaxonomyItem[]>([]);
   const [hazards, setHazards] = useState<RoadHazard[]>([]);
@@ -326,7 +327,8 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         locale: 'fr-DZ',
       };
 
-      closeReportSheet();
+      SheetManager.hide('hazard-report-sheet');
+
       showSnackbar('Envoi en cours...');
 
       const res = await api.post(buildRoute(ApiRoutes.hazards.index), payload);
