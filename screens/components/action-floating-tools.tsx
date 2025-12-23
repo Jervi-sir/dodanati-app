@@ -204,7 +204,8 @@ export const ActionFloatingTools = () => {
             <CenterMapIcon size={22} color={theme.colors.text} />
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* Change my current location */}
+          {/* <TouchableOpacity
             style={[
               iconBtnStyle, { backgroundColor: theme.colors.danger },
               isSimulatingLocation && { backgroundColor: theme.colors.success, borderColor: theme.colors.success }
@@ -213,7 +214,19 @@ export const ActionFloatingTools = () => {
             activeOpacity={0.8}
           >
             <CenterMapIcon size={22} color={isSimulatingLocation ? '#FFF' : theme.colors.text} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
+
+          {/* Open sheet for the offline queued */}
+          {/* <TouchableOpacity
+            style={[
+              iconBtnStyle, { backgroundColor: theme.colors.danger },
+              isSimulatingLocation && { backgroundColor: theme.colors.success, borderColor: theme.colors.success }
+            ]}
+            onPress={() => SheetManager.show('sync-queue-sheet')}
+            activeOpacity={0.8}
+          >
+            <SpeedBumpIcon size={22} color={isSimulatingLocation ? '#FFF' : theme.colors.text} />
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={{

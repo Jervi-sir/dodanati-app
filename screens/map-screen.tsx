@@ -12,6 +12,7 @@ import { ActionFloatingTools } from './components/action-floating-tools';
 import { SnackbarBanner } from './components/snackbar-banner';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { SheetManager } from 'react-native-actions-sheet';
+import { OfflineIndicator } from '@/components/offline-indicator';
 
 const MAP_WIDTH = Dimensions.get('window').width;
 
@@ -287,6 +288,9 @@ export const MapScreen = () => {
           />
         )}
       </MapView>
+
+      {/* Offline indicator */}
+      <OfflineIndicator />
 
       {/* Floating tools */}
       <ActionFloatingTools />
