@@ -127,7 +127,8 @@ export const MapScreen = () => {
     currentLat,
     currentLng,
     currentHeading,
-    setCurrentHeading
+    setCurrentHeading,
+    showMapLabels
   } = useLocation();
 
   const { hazards, clusters, mode: hazardMode, selectedHazard, setSelectedHazard } = useHazards();
@@ -137,6 +138,17 @@ export const MapScreen = () => {
   const { snackbar, hideSnackbar } = useUI(); // (kept because you had it, even if not used here)
 
   const isLoading = bootLoading || locationLoading;
+
+  const mapStyle = useMemo(() => {
+    let style: any[] = []; // Typed explicitly
+    if (mode === 'dark') {
+      style = [...DARK_MAP_STYLE];
+    }
+    if (!showMapLabels) {
+      style = [...style, ...CLEAN_MAP_STYLE];
+    }
+    return style;
+  }, [mode, showMapLabels]);
 
   /* ----------------------- Actionsheet ----------------------- */
   const handleHazardPress = useCallback(
@@ -275,7 +287,8 @@ export const MapScreen = () => {
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
-        customMapStyle={mode === 'dark' ? DARK_MAP_STYLE : []}
+        customMapStyle={mapStyle}
+        showsPointsOfInterest={showMapLabels}
         userInterfaceStyle={mode}
         initialRegion={region}
         onRegionChangeComplete={(r) => {
@@ -373,6 +386,24 @@ const DARK_MAP_STYLE = [
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#3c4043' }] },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1a73e8' }] },
   { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#303134' }] },
+];
+
+const CLEAN_MAP_STYLE = [
+  {
+    featureType: "poi",
+    elementType: "labels",
+    stylers: [{ visibility: "off" }]
+  },
+  {
+    featureType: "transit",
+    elementType: "labels",
+    stylers: [{ visibility: "off" }]
+  },
+  {
+    featureType: "road",
+    elementType: "labels.icon",
+    stylers: [{ visibility: "off" }]
+  }
 ];
 
 const makeStyles = (theme: AppTheme) =>

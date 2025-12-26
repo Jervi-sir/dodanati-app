@@ -8,7 +8,7 @@ import { SheetManager } from 'react-native-actions-sheet';
 
 export const MapParamsSheet: React.FC<SheetProps> = (props) => {
   const { theme, mode, setMode } = useTheme();
-  const { mapProvider, setMapProvider } = useLocation();
+  const { mapProvider, setMapProvider, showMapLabels, setShowMapLabels } = useLocation();
 
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
@@ -78,6 +78,32 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
         </View>
       </View>
 
+      {/* Display Options */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Affichage</Text>
+        <TouchableOpacity
+          style={styles.listItem}
+          onPress={() => setShowMapLabels(!showMapLabels)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.listItemTextWrapper}>
+            <Text style={styles.listItemTitle}>Noms de lieux</Text>
+            <Text style={styles.listItemSubtitle}>
+              {showMapLabels ? 'Masquer' : 'Afficher'} les labels sur la carte
+            </Text>
+          </View>
+          <View style={[
+            styles.toggleDict,
+            showMapLabels && styles.toggleDictActive
+          ]}>
+            <View style={[
+              styles.toggleKnob,
+              showMapLabels && styles.toggleKnobActive
+            ]} />
+          </View>
+        </TouchableOpacity>
+      </View>
+
       {/* History */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Données</Text>
@@ -109,7 +135,7 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
           <Text style={styles.closeButtonText}>Fermer</Text>
         </TouchableOpacity>
       </View>
-    </ActionSheet>
+    </ActionSheet >
   );
 };
 
@@ -221,5 +247,30 @@ const makeStyles = (theme: AppTheme) =>
       color: theme.colors.textMuted,
       fontSize: 14,
       fontWeight: '500',
+    },
+
+    toggleDict: {
+      width: 50,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: theme.colors.border, // inactive
+      padding: 2,
+    },
+    toggleDictActive: {
+      backgroundColor: theme.colors.accent,
+    },
+    toggleKnob: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: 'white',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    toggleKnobActive: {
+      alignSelf: 'flex-end',
     },
   });

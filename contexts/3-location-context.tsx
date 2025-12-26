@@ -26,6 +26,9 @@ type LocationContextType = {
   /** 0..360 degrees */
   currentHeading: number;
   setCurrentHeading: (h: number) => void;
+
+  showMapLabels: boolean;
+  setShowMapLabels: (show: boolean) => void;
 };
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
@@ -76,6 +79,26 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setMapProvider(next);
     try {
       await AsyncStorage.setItem('mapProvider', next);
+    } catch { }
+  };
+
+  const [showMapLabels, setShowMapLabels] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const storedLabels = await AsyncStorage.getItem('mapShowLabels');
+        if (storedLabels !== null) {
+          setShowMapLabels(JSON.parse(storedLabels));
+        }
+      } catch { }
+    })();
+  }, []);
+
+  const updateShowMapLabels = async (show: boolean) => {
+    setShowMapLabels(show);
+    try {
+      await AsyncStorage.setItem('mapShowLabels', JSON.stringify(show));
     } catch { }
   };
 
@@ -239,6 +262,8 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         simulateLocation,
         currentHeading,
         setCurrentHeading,
+        showMapLabels,
+        setShowMapLabels: updateShowMapLabels,
       }}
     >
       {children}
