@@ -151,7 +151,7 @@ export const ActionFloatingTools = () => {
                 onPress={() => handleQuickReport('speed_bump')}
                 disabled={isLoading}
               >
-                <SpeedBumpIcon type='bump-2' size={20} />
+                <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#F59E0B', borderWidth: 1, borderColor: '#FFF' }} />
                 <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text }}>
                   Dos-d’âne
                 </Text>
@@ -162,7 +162,7 @@ export const ActionFloatingTools = () => {
                 onPress={() => handleQuickReport('pothole')}
                 disabled={isLoading}
               >
-                <HoleIcon type='hole-2' size={20} color={theme.colors.text} />
+                <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#EF4444', borderWidth: 1, borderColor: '#FFF' }} />
                 <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text }}>
                   حفرة
                 </Text>

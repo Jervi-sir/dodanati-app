@@ -9,6 +9,7 @@ import { useLocation } from '@/contexts/3-location-context';
 import { RouteSummary, useRoute } from '@/contexts/6-route-context';
 import { useUI } from '@/contexts/4-ui-context';
 import { ActionFloatingTools } from './components/action-floating-tools';
+import { HazardMarker } from './components/hazard-marker';
 import { SnackbarBanner } from './components/snackbar-banner';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { SheetManager } from 'react-native-actions-sheet';
@@ -28,6 +29,10 @@ type ClientCluster = {
   lng: number;
   count: number;
   ids: number[];
+  composition: {
+    hasSpeedBump: boolean;
+    hasPothole: boolean;
+  };
 };
 
 function projectToWorldPx(lat: number, lng: number, zoom: number) {
@@ -49,7 +54,7 @@ function regionToZoom(region: Region, mapWidthPx: number) {
 }
 
 function clusterHazardsClientSide(params: {
-  hazards: { id: number; lat: number | string; lng: number | string }[];
+  hazards: RoadHazard[];
   region: Region;
   mapWidthPx: number;
   cellSizePx?: number; // larger => more grouping
@@ -72,11 +77,28 @@ function clusterHazardsClientSide(params: {
     const key = `${gx}:${gy}`;
 
     const existing = buckets.get(key);
+
+    const slug = h.category?.slug;
+    const isSpeedBump = slug === 'speed_bump';
+    const isPothole = slug === 'pothole';
+
     if (!existing) {
-      buckets.set(key, { lat, lng, count: 1, ids: [h.id] });
+      buckets.set(key, {
+        lat,
+        lng,
+        count: 1,
+        ids: [h.id],
+        composition: {
+          hasSpeedBump: isSpeedBump,
+          hasPothole: isPothole
+        }
+      });
     } else {
       existing.count += 1;
       existing.ids.push(h.id);
+
+      if (isSpeedBump) existing.composition.hasSpeedBump = true;
+      if (isPothole) existing.composition.hasPothole = true;
 
       // incremental average keeps cluster marker centered-ish
       existing.lat = existing.lat + (lat - existing.lat) / existing.count;
@@ -108,7 +130,7 @@ export const MapScreen = () => {
     setCurrentHeading
   } = useLocation();
 
-  const { hazards, clusters, mode: hazardMode, setSelectedHazard } = useHazards();
+  const { hazards, clusters, mode: hazardMode, selectedHazard, setSelectedHazard } = useHazards();
 
   const { destination, routeSummary, selectDestination, routeCoords } = useRoute();
 
@@ -150,45 +172,64 @@ export const MapScreen = () => {
 
   /* ----------------------- Markers ----------------------- */
   const hazardSingleMarkers = useMemo(() => {
-    return clusteredFromPoints.singles.map((h) => (
-      <Marker
-        key={`hazard-${h.id}`}
-        coordinate={{ latitude: Number(h.lat), longitude: Number(h.lng) }}
-        title={h.category?.name_fr ?? h.category?.name_en ?? 'Danger'}
-        description={h.note ?? `Signalements: ${h.reports_count} • Sévérité: ${h.severity}`}
-        pinColor="#F59E0B"
-        onPress={() => handleHazardPress(h)}
-        tracksViewChanges={false}
-        zIndex={10}
-      />
-    ));
-  }, [clusteredFromPoints.singles, handleHazardPress]);
+    return clusteredFromPoints.singles.map((h) => {
+      const isSelected = selectedHazard?.id === h.id;
+      return (
+        <Marker
+          key={`hazard-${h.id}`}
+          coordinate={{ latitude: Number(h.lat), longitude: Number(h.lng) }}
+          onPress={() => handleHazardPress(h)}
+          zIndex={isSelected ? 999 : 10}
+          tracksViewChanges={false} // Re-enable for performance, custom view should be stable
+        >
+          <HazardMarker hazard={h} selected={isSelected} />
+        </Marker>
+      );
+    });
+  }, [clusteredFromPoints.singles, selectedHazard, handleHazardPress]);
 
+  /* ----------------------- Markers ----------------------- */
   const hazardBubbleMarkers = useMemo(() => {
     // Bubble markers built purely on client grouping
-    return clusteredFromPoints.clusters.map((c) => (
-      <Marker
-        key={`vcluster-${c.lat}-${c.lng}-${c.count}`}
-        coordinate={{ latitude: c.lat, longitude: c.lng }}
-        zIndex={20}              // 👈 higher than user location
-        tracksViewChanges={false}
-        anchor={{ x: 0.5, y: 0.5 }}
-        onPress={() => {
-          const next: Region = {
-            ...region,
-            latitude: c.lat,
-            longitude: c.lng,
-            latitudeDelta: region.latitudeDelta * 0.5,
-            longitudeDelta: region.longitudeDelta * 0.5,
-          };
-          mapRef.current?.animateToRegion(next, 250);
-        }}
-      >
-        <View style={stylesCluster.bubble}>
-          <Text style={stylesCluster.count}>{c.count}</Text>
-        </View>
-      </Marker>
-    ));
+    return clusteredFromPoints.clusters.map((c) => {
+      const { hasSpeedBump, hasPothole } = c.composition;
+      const isMixed = hasSpeedBump && hasPothole;
+
+      return (
+        <Marker
+          key={`vcluster-${c.lat}-${c.lng}-${c.count}`}
+          coordinate={{ latitude: c.lat, longitude: c.lng }}
+          zIndex={20}              // 👈 higher than user location
+          tracksViewChanges={false}
+          anchor={{ x: 0.5, y: 0.5 }}
+          onPress={() => {
+            const next: Region = {
+              ...region,
+              latitude: c.lat,
+              longitude: c.lng,
+              latitudeDelta: region.latitudeDelta * 0.5,
+              longitudeDelta: region.longitudeDelta * 0.5,
+            };
+            mapRef.current?.animateToRegion(next, 250);
+          }}
+        >
+          <View style={stylesCluster.bubbleContainer}>
+            {isMixed ? (
+              <View style={stylesCluster.splitBackground}>
+                <View style={[stylesCluster.splitHalf, { backgroundColor: '#EF4444' }]} />
+                <View style={[stylesCluster.splitHalf, { backgroundColor: '#F59E0B' }]} />
+              </View>
+            ) : (
+              <View style={[
+                stylesCluster.solidBackground,
+                { backgroundColor: hasPothole ? '#EF4444' : (hasSpeedBump ? '#F59E0B' : '#2563EB') }
+              ]} />
+            )}
+            <Text style={stylesCluster.count}>{c.count}</Text>
+          </View>
+        </Marker>
+      )
+    });
   }, [clusteredFromPoints.clusters, mapRef, region]);
 
   const serverClusterMarkers = useMemo(() => {
@@ -263,7 +304,7 @@ export const MapScreen = () => {
             anchor={{ x: 0.5, y: 0.5 }}
             rotation={currentHeading || 0}
             flat={true}
-            zIndex={999}
+            zIndex={5}
           >
             <LocationPuck
               heading={currentHeading}
@@ -351,6 +392,43 @@ const makeStyles = (theme: AppTheme) =>
   });
 
 const stylesCluster = StyleSheet.create({
+  bubbleContainer: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  splitBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 15,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  splitHalf: {
+    flex: 1,
+    height: '100%',
+  },
+  solidBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: 'white',
+  },
   bubble: {
     minWidth: 34,
     height: 34,
@@ -367,5 +445,6 @@ const stylesCluster = StyleSheet.create({
     color: 'white',
     fontWeight: '800',
     fontSize: 13,
+    zIndex: 2,
   },
 });
