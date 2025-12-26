@@ -26,7 +26,7 @@ Your Dodanati app now has comprehensive offline support with automatic data cach
 ### 4. **Smart Sync System**
 - **Auto-prompt**: When coming back online with queued reports, users get a popup
 - **Manual Sync**: Users can tap the orange banner to open sync dialog
-- **Batch Sync**: All queued reports sync together
+- **Bulk Sync**: All queued reports sync in a single API call (efficient!)
 - **Error Handling**: Failed syncs are reported, successful ones are confirmed
 
 ## Implementation Details
@@ -42,7 +42,8 @@ dodanati-app/
 ├── components/
 │   └── offline-indicator.tsx          # Visual network status indicator
 ├── screens/
-│   └── sync-queue-sheet.tsx           # Sync confirmation dialog
+│   └── sheets/
+│       └── sync-queue-sheet.tsx       # Sync confirmation dialog
 └── contexts/
     └── 5-hazard-context.tsx           # Enhanced with offline support
 ```
@@ -58,7 +59,7 @@ const { isConnected, isOnline, isInternetReachable } = useNetworkStatus();
 
 #### 2. **Offline Queue Store** (`stores/offline-queue-store.ts`)
 ```typescript
-const { queue, addToQueue, removeFromQueue, loadQueue } = useOfflineQueueStore();
+const { queue, addToQueue, removeFromQueue, loadQueue, clearQueue } = useOfflineQueueStore();
 ```
 - Zustand store with AsyncStorage persistence
 - Manages queued hazard reports
@@ -71,11 +72,60 @@ const { queue, addToQueue, removeFromQueue, loadQueue } = useOfflineQueueStore()
 - Red banner: Offline
 - Orange banner: Online with queued items
 
-#### 4. **Sync Queue Sheet** (`screens/sync-queue-sheet.tsx`)
+#### 4. **Sync Queue Sheet** (`screens/sheets/sync-queue-sheet.tsx`)
 - Modal showing all queued reports
-- One-tap sync for all items
+- **Bulk sync** for all items in one API call
 - Shows timestamp, category, and severity for each report
 - "Later" option to dismiss without syncing
+
+### API Integration
+
+#### Bulk Sync Endpoint
+
+The app uses the efficient bulk API endpoint:
+
+**Endpoint**: `POST /api/v1/hazards/bulk`
+
+**Request Format**:
+```json
+{
+  "device_uuid": "...",
+  "platform": "ios|android",
+  "app_version": "1.0.0",
+  "locale": "fr-DZ",
+  "items": [
+    {
+      "road_hazard_category_id": 1,
+      "severity": 3,
+      "note": "Optional note",
+      "lat": 36.123,
+      "lng": 3.456,
+      "client_ref": "temp_123456_random"
+    }
+  ]
+}
+```
+
+**Response Format**:
+```json
+{
+  "data": [
+    { "id": 1, "lat": 36.123, "lng": 3.456, ... }
+  ],
+  "meta": {
+    "created_count": 5,
+    "failed_count": 0,
+    "merged_count": 2
+  }
+}
+```
+
+#### Benefits of Bulk API
+- ✅ Single network request (faster)
+- ✅ Atomic operation (all or nothing)
+- ✅ Reduced server load
+- ✅ Better error handling
+- ✅ Client reference tracking
 
 ### Storage Keys
 
@@ -123,22 +173,23 @@ const oneDay = 24 * 60 * 60 * 1000; // 24 hours
    - Tap "Plus tard" to sync later
    - Tap the orange banner anytime to reopen dialog
 
-### Scenario 4: Manual Sync
+### Scenario 4: Manual Sync (Bulk)
 1. User taps orange banner showing queued items
 2. Sync dialog opens
 3. User reviews pending reports
 4. Taps "Synchroniser"
-5. Each report syncs individually
+5. **All reports sync in one bulk API call** (fast & efficient!)
 6. Success/failure feedback shown
 7. Successfully synced reports removed from queue
 
 ## API Integration
 
-### Modified Endpoints
+### Endpoints Used
 
-The offline system works with your existing Laravel API:
-- `POST /api/hazards/store` - Submit hazard reports
-- `GET /api/hazards/nearby` - Fetch nearby hazards
+The offline system works with your Laravel API:
+- `POST /api/v1/hazards/store` - Submit single hazard report
+- `POST /api/v1/hazards/bulk` - **Bulk submit queued reports** (sync)
+- `GET /api/v1/hazards/nearby` - Fetch nearby hazards
 
 ### Offline Behavior
 
@@ -172,6 +223,7 @@ The offline system works with your existing Laravel API:
 - Check network connection
 - Open sync dialog manually via orange banner
 - Check console for sync errors
+- Verify bulk API endpoint is available
 
 ### Cache not updating?
 - Wait for cache TTL to expire (1 hour)
@@ -199,7 +251,8 @@ Potential improvements:
 ### Performance
 - AsyncStorage operations are async (non-blocking)
 - Cache checks happen on mount (minimal impact)
-- Sync is sequential (reports submitted one by one)
+- **Bulk sync uses single API call** (much faster than individual requests)
+- Includes client reference tracking for debugging
 
 ### Limitations
 - No offline support for user authentication

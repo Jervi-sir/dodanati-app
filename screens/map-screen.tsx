@@ -13,6 +13,8 @@ import { SnackbarBanner } from './components/snackbar-banner';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { SheetManager } from 'react-native-actions-sheet';
 import { OfflineIndicator } from '@/components/offline-indicator';
+import NavigationArrowIcon from '@/assets/icons/navigation-arrow-icon';
+import { LocationPuck } from '@/assets/icons/location-puck';
 
 const MAP_WIDTH = Dimensions.get('window').width;
 
@@ -102,6 +104,8 @@ export const MapScreen = () => {
     simulateLocation,
     currentLat,
     currentLng,
+    currentHeading,
+    setCurrentHeading
   } = useLocation();
 
   const { hazards, clusters, mode: hazardMode, setSelectedHazard } = useHazards();
@@ -239,7 +243,7 @@ export const MapScreen = () => {
         }}
         provider={mapProvider === 'google' ? PROVIDER_GOOGLE : undefined}
         showsMyLocationButton={true}
-        showsUserLocation={!isSimulatingLocation}
+        showsUserLocation={false}
         onPress={(e) => {
           if (isSimulatingLocation) {
             const { latitude, longitude } = e.nativeEvent.coordinate;
@@ -251,12 +255,23 @@ export const MapScreen = () => {
           selectDestination({ latitude, longitude });
         }}
       >
-        {isSimulatingLocation && currentLat && currentLng && (
+        {/* User Location Marker (Simulated or Real) */}
+        {currentLat && currentLng && (
           <Marker
             coordinate={{ latitude: currentLat, longitude: currentLng }}
-            title="Ma position simulée"
-            pinColor="purple"
-          />
+            title={isSimulatingLocation ? "Position simulée" : "Ma position"}
+            anchor={{ x: 0.5, y: 0.5 }}
+            rotation={currentHeading || 0}
+            flat={true}
+            zIndex={999}
+          >
+            <LocationPuck
+              heading={currentHeading}
+              showCone
+              coneAngleDeg={70}
+              size={50}
+            />
+          </Marker>
         )}
 
         {/* Render logic:

@@ -22,6 +22,10 @@ type LocationContextType = {
   isSimulatingLocation: boolean;
   toggleSimulationMode: () => void;
   simulateLocation: (lat: number, lng: number) => void;
+
+  /** 0..360 degrees */
+  currentHeading: number;
+  setCurrentHeading: (h: number) => void;
 };
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
@@ -36,6 +40,10 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [locationLoading, setLocationLoading] = useState(true);
   const [currentLat, setCurrentLat] = useState<number | null>(null);
   const [currentLng, setCurrentLng] = useState<number | null>(null);
+
+  // ✅ heading is ALWAYS a number (0..360)
+  const [currentHeading, setCurrentHeading] = useState<number>(0);
+
   const [mapProvider, setMapProvider] = useState<MapProviderKind>('system');
   const [isSimulatingLocation, setIsSimulatingLocation] = useState(false);
 
@@ -60,24 +68,44 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (stored && (stored === 'system' || stored === 'google')) {
           setMapProvider(stored as MapProviderKind);
         }
-      } catch (e) { }
+      } catch { }
     })();
   }, []);
 
   const updateMapProvider = async (next: MapProviderKind) => {
     setMapProvider(next);
-    await AsyncStorage.setItem('mapProvider', next);
+    try {
+      await AsyncStorage.setItem('mapProvider', next);
+    } catch { }
   };
 
-  const toggleSimulationMode = () => setIsSimulatingLocation(!isSimulatingLocation);
+  const toggleSimulationMode = () => setIsSimulatingLocation((v) => !v);
 
   const simulateLocation = (lat: number, lng: number) => {
     setCurrentLat(lat);
     setCurrentLng(lng);
   };
 
+  // ✅ Smooth heading changes (prevents jitter + handles 359->0 wrap)
+  const headingRef = useRef(0);
+  const smoothHeading = (next: number) => {
+    const prev = headingRef.current;
+    const alpha = 0.25; // 0.15 smoother, 0.35 more reactive
+
+    let diff = next - prev;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+
+    const smoothed = prev + diff * alpha;
+    const normalized = (smoothed + 360) % 360;
+
+    headingRef.current = normalized;
+    return normalized;
+  };
+
   useEffect(() => {
-    let subscriber: Location.LocationSubscription | null = null;
+    let positionSub: Location.LocationSubscription | null = null;
+    let headingSub: Location.LocationSubscription | null = null;
 
     const startLocationTracking = async () => {
       try {
@@ -88,6 +116,24 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           return;
         }
 
+        // ✅ Compass heading (updates even when standing still)
+        try {
+          headingSub = await Location.watchHeadingAsync((h) => {
+            if (isSimulatingRef.current) return;
+
+            const raw =
+              Number.isFinite(h.trueHeading) && h.trueHeading >= 0
+                ? h.trueHeading
+                : h.magHeading;
+
+            if (Number.isFinite(raw)) {
+              setCurrentHeading(smoothHeading(raw));
+            }
+          });
+        } catch (e) {
+          console.warn('watchHeadingAsync not available', e);
+        }
+
         // Get initial position quickly
         const initialLoc = await Location.getCurrentPositionAsync({});
         const lat = initialLoc.coords.latitude ?? DEFAULT_LAT;
@@ -96,12 +142,14 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (!isSimulatingRef.current) {
           setCurrentLat(lat);
           setCurrentLng(lng);
-          const initialRegion = {
+
+          const initialRegion: Region = {
             latitude: lat,
             longitude: lng,
             latitudeDelta: 0.03,
             longitudeDelta: 0.03,
           };
+
           setRegion(initialRegion);
 
           setTimeout(() => {
@@ -111,8 +159,8 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         setLocationLoading(false);
 
-        // Start watching
-        subscriber = await Location.watchPositionAsync(
+        // Start watching location (lat/lng)
+        positionSub = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
             timeInterval: 2000,
@@ -122,10 +170,20 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             if (!isSimulatingRef.current) {
               setCurrentLat(loc.coords.latitude);
               setCurrentLng(loc.coords.longitude);
+
+              // ⚠️ Do NOT overwrite compass heading with GPS heading by default.
+              // GPS heading is only reliable when moving.
+              // If you want: enable only when speed is high:
+              /*
+              const gpsHeading = loc.coords.heading;
+              const speed = loc.coords.speed ?? 0;
+              if (typeof gpsHeading === 'number' && gpsHeading >= 0 && speed > 1) {
+                setCurrentHeading(smoothHeading(gpsHeading));
+              }
+              */
             }
           }
         );
-
       } catch (err) {
         console.error('Location error', err);
         setLocationLoading(false);
@@ -135,27 +193,33 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     startLocationTracking();
 
     return () => {
-      subscriber?.remove();
+      positionSub?.remove();
+      headingSub?.remove();
     };
   }, []);
 
   const recenterOnUser = useCallback(() => {
     if (currentLat == null || currentLng == null) return;
+
     const newRegion: Region = {
       latitude: currentLat,
       longitude: currentLng,
       latitudeDelta: 0.03,
       longitudeDelta: 0.03,
     };
+
     setRegion(newRegion);
-    // Use animateCamera to ensure the location is centered
-    mapRef.current?.animateCamera({
-      center: {
-        latitude: currentLat,
-        longitude: currentLng,
+
+    mapRef.current?.animateCamera(
+      {
+        center: {
+          latitude: currentLat,
+          longitude: currentLng,
+        },
+        zoom: 15,
       },
-      zoom: 15, // adjust zoom level as needed
-    }, { duration: 500 });
+      { duration: 500 }
+    );
   }, [currentLat, currentLng]);
 
   return (
@@ -173,6 +237,8 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         isSimulatingLocation,
         toggleSimulationMode,
         simulateLocation,
+        currentHeading,
+        setCurrentHeading,
       }}
     >
       {children}

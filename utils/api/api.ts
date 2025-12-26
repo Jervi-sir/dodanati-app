@@ -15,6 +15,7 @@ export const ApiRoutes = {
 
   hazards: {
     store: 'hazards',
+    bulk: 'hazards/bulk',
     history: 'hazards/history',
     nearby: 'hazards/nearby',
 

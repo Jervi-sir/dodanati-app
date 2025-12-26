@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Region } from 'react-native-maps';
@@ -79,7 +79,6 @@ export type NearbyResponse = NearbyPointsResponse | NearbyClustersResponse;
 type HazardMode = 'points' | 'clusters';
 
 type HazardContextType = {
-  // data
   hazards: RoadHazard[];
   clusters: HazardCluster[];
   mode: HazardMode;
@@ -108,12 +107,31 @@ type HazardContextType = {
 
   deleteHazard: (id: number) => void;
   syncQueuedReport: (report: QueuedHazardReport) => Promise<void>;
+  syncBulkQueuedReports: (
+    reports: QueuedHazardReport[]
+  ) => Promise<{ success: number; failed: number; results: any[] }>;
 };
 
 const STORAGE_KEY_HAZARDS = 'offline_hazards_cache_v1';
 const STORAGE_KEY_CLUSTERS = 'offline_hazard_clusters_cache_v1';
 const STORAGE_KEY_CACHE_META = 'offline_cache_metadata_v1';
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
+
+// ✅ Fallback taxonomy if server taxonomy.categories is missing/empty/fails
+const FALLBACK_CATEGORIES: RoadHazardCategoryTaxonomyItem[] = [
+  {
+    id: 2,
+    slug: 'pothole',
+    label: 'Nid-de-poule',
+    icon: 'pothole',
+  },
+  {
+    id: 1,
+    slug: 'speed_bump',
+    label: 'Dos d’âne',
+    icon: 'speed-bump',
+  },
+];
 
 const HazardContext = createContext<HazardContextType | undefined>(undefined);
 
@@ -178,22 +196,20 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     const checkCacheAndQueue = async () => {
       try {
-        // Check cache timestamp
         const metaStr = await AsyncStorage.getItem(STORAGE_KEY_CACHE_META);
         if (metaStr) {
           const meta = JSON.parse(metaStr);
           const now = Date.now();
-          if (meta.timestamp && (now - meta.timestamp) > CACHE_TTL) {
+          if (meta.timestamp && now - meta.timestamp > CACHE_TTL) {
             console.log('Cache expired, will refresh on next fetch');
           }
         }
 
-        // Show sync prompt if we have queued items and just came online
         if (isConnected && queue.length > 0 && !hasShownSyncPrompt.current) {
           hasShownSyncPrompt.current = true;
           setTimeout(() => {
             SheetManager.show('sync-queue-sheet');
-          }, 1000); // Delay to avoid UI conflicts
+          }, 1000);
         }
       } catch (e) {
         console.error('Failed to check cache metadata', e);
@@ -207,18 +223,16 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     const loadOffline = async () => {
       try {
-        // Check if cache is still valid
         const metaStr = await AsyncStorage.getItem(STORAGE_KEY_CACHE_META);
         let cacheValid = false;
 
         if (metaStr) {
           const meta = JSON.parse(metaStr);
           const now = Date.now();
-          cacheValid = meta.timestamp && (now - meta.timestamp) < CACHE_TTL;
+          cacheValid = meta.timestamp && now - meta.timestamp < CACHE_TTL;
         }
 
         if (cacheValid || !isConnected) {
-          // Load from cache if valid or offline
           const storedHazards = await AsyncStorage.getItem(STORAGE_KEY_HAZARDS);
           if (storedHazards) {
             const parsed = JSON.parse(storedHazards);
@@ -241,11 +255,13 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const cacheHazards = async (data: RoadHazard[]) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY_HAZARDS, JSON.stringify(data));
-      // Update cache metadata
-      await AsyncStorage.setItem(STORAGE_KEY_CACHE_META, JSON.stringify({
-        timestamp: Date.now(),
-        hazardsCount: data.length,
-      }));
+      await AsyncStorage.setItem(
+        STORAGE_KEY_CACHE_META,
+        JSON.stringify({
+          timestamp: Date.now(),
+          hazardsCount: data.length,
+        })
+      );
     } catch (e) {
       console.error('Failed to cache hazards', e);
     }
@@ -254,17 +270,19 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const cacheClusters = async (data: HazardCluster[]) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY_CLUSTERS, JSON.stringify(data));
-      // Update cache metadata
-      await AsyncStorage.setItem(STORAGE_KEY_CACHE_META, JSON.stringify({
-        timestamp: Date.now(),
-        clustersCount: data.length,
-      }));
+      await AsyncStorage.setItem(
+        STORAGE_KEY_CACHE_META,
+        JSON.stringify({
+          timestamp: Date.now(),
+          clustersCount: data.length,
+        })
+      );
     } catch (e) {
       console.error('Failed to cache clusters', e);
     }
   };
 
-  // Fetch categories (taxonomy)
+  // ✅ Fetch categories (taxonomy) with fallback
   useEffect(() => {
     const loadCategories = async () => {
       setCategoriesLoading(true);
@@ -274,14 +292,26 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           headers: { 'X-Requires-Auth': false },
         });
 
-        const data = res?.data?.data || [];
-        setCategories(data);
+        const data: RoadHazardCategoryTaxonomyItem[] = res?.data?.data ?? [];
 
-        if (data.length && selectedCategoryId == null && data[0]?.id) {
-          setSelectedCategoryId(data[0].id);
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data);
+          if (selectedCategoryId == null && data[0]?.id) {
+            setSelectedCategoryId(data[0].id);
+          }
+        } else {
+          console.warn('Taxonomy empty, using fallback categories');
+          setCategories(FALLBACK_CATEGORIES);
+          if (selectedCategoryId == null) {
+            setSelectedCategoryId(FALLBACK_CATEGORIES[0].id!);
+          }
         }
       } catch (err) {
-        console.error('Taxonomy error', err);
+        console.error('Taxonomy error, using fallback', err);
+        setCategories(FALLBACK_CATEGORIES);
+        if (selectedCategoryId == null) {
+          setSelectedCategoryId(FALLBACK_CATEGORIES[0].id!);
+        }
       } finally {
         setCategoriesLoading(false);
       }
@@ -313,61 +343,58 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // MAIN fetch: returns either points or clusters based on backend mode
-  const fetchNearby = useCallback(async (lat: number, lng: number, zoom: number, currentRegion: Region) => {
-    // If offline, skip fetch and use cached data
-    if (!isConnected) {
-      console.log('Offline mode: using cached data');
-      // showSnackbar('Mode hors ligne', 'Info');
-      return;
-    }
-
-    setHazardsLoading(true);
-    try {
-      // Calculate viewport bounds
-      const bounds = calculateViewportBounds(currentRegion);
-
-      const res = await api.get(buildRoute(ApiRoutes.hazards.nearby), {
-        params: {
-          lat,
-          lng,
-          zoom,
-          mode: 'auto',
-          // Send viewport bounds instead of radius
-          minLat: bounds.minLat,
-          maxLat: bounds.maxLat,
-          minLng: bounds.minLng,
-          maxLng: bounds.maxLng,
-        },
-        headers: { 'X-Requires-Auth': false },
-      });
-
-      const payload: NearbyResponse = res?.data;
-
-      if (payload?.mode === 'points') {
-        setMode('points');
-        setHazards(payload.data || []);
-        setClusters([]); // Clear clusters when in points mode
-        setTotalInRadius(payload.meta?.total_in_radius ?? 0);
-        cacheHazards(payload.data || []);
-      } else if (payload?.mode === 'clusters') {
-        setMode('clusters');
-        setClusters(payload.data || []);
-        // Keep hazards as-is OR clear them - let's keep them for now
-        // setHazards([]); // Uncomment if you want to clear hazards in cluster mode
-        setTotalInRadius(payload.meta?.total_in_radius ?? 0);
-        cacheClusters(payload.data || []);
-      } else {
-        console.warn('Unknown hazards response', payload);
+  const fetchNearby = useCallback(
+    async (lat: number, lng: number, zoom: number, currentRegion: Region) => {
+      if (!isConnected) {
+        console.log('Offline mode: using cached data');
+        return;
       }
 
-      lastFetchRef.current = { lat, lng, zoom };
-    } catch (err) {
-      console.error('Nearby hazards error', err);
-      showSnackbar('Erreur de chargement', 'Erreur');
-    } finally {
-      setHazardsLoading(false);
-    }
-  }, [isConnected, showSnackbar]);
+      setHazardsLoading(true);
+      try {
+        const bounds = calculateViewportBounds(currentRegion);
+
+        const res = await api.get(buildRoute(ApiRoutes.hazards.nearby), {
+          params: {
+            lat,
+            lng,
+            zoom,
+            mode: 'auto',
+            minLat: bounds.minLat,
+            maxLat: bounds.maxLat,
+            minLng: bounds.minLng,
+            maxLng: bounds.maxLng,
+          },
+          headers: { 'X-Requires-Auth': false },
+        });
+
+        const payload: NearbyResponse = res?.data;
+
+        if (payload?.mode === 'points') {
+          setMode('points');
+          setHazards(payload.data || []);
+          setClusters([]);
+          setTotalInRadius(payload.meta?.total_in_radius ?? 0);
+          cacheHazards(payload.data || []);
+        } else if (payload?.mode === 'clusters') {
+          setMode('clusters');
+          setClusters(payload.data || []);
+          setTotalInRadius(payload.meta?.total_in_radius ?? 0);
+          cacheClusters(payload.data || []);
+        } else {
+          console.warn('Unknown hazards response', payload);
+        }
+
+        lastFetchRef.current = { lat, lng, zoom };
+      } catch (err) {
+        console.error('Nearby hazards error', err);
+        showSnackbar('Erreur de chargement', 'Erreur');
+      } finally {
+        setHazardsLoading(false);
+      }
+    },
+    [isConnected, showSnackbar]
+  );
 
   // Auto fetch on region changes (debounced)
   useEffect(() => {
@@ -375,8 +402,6 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const z = zoomFromRegion(region);
 
-    // Avoid fetching if moved < 3km AND zoom unchanged enough
-    // Increased threshold since we're fetching viewport-based data
     if (lastFetchRef.current) {
       const dist = getDistanceKm(
         lastFetchRef.current.lat,
@@ -387,7 +412,6 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const zoomDiff = Math.abs(lastFetchRef.current.zoom - z);
 
-      // tweak thresholds:
       if (dist < 2 && zoomDiff < 1) return;
     }
 
@@ -425,7 +449,6 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     SheetManager.hide('hazard-report-sheet');
 
-    // If offline, queue the report
     if (!isConnected) {
       const category = categories.find((c) => c.id === selectedCategoryId);
       await addToQueue({
@@ -437,19 +460,16 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setNote('');
       setSeverity(3);
 
-      showSnackbar('Signalement mis en file d\'attente', 'OK');
+      showSnackbar("Signalement mis en file d'attente", 'OK');
       return;
     }
 
-    // Online: submit immediately
     try {
       showSnackbar('Envoi en cours...');
 
       const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
       const newHazard: RoadHazard = res.data.data;
 
-      // If you're currently in clusters mode, you can still upsert locally,
-      // but it won't show unless user zooms in. That's fine.
       upsertHazard(newHazard);
 
       setNote('');
@@ -487,19 +507,17 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       locale: 'fr-DZ',
     };
 
-    // If offline, queue it
     if (!isConnected) {
       await addToQueue({
         ...payload,
         categorySlug: category.slug,
         categoryLabel: category.label,
       });
-      showSnackbar(slug === 'speed_bump' ? 'Dos-d\'âne mis en file d\'attente' : 'حفرة mis en file d\'attente', 'OK');
+      showSnackbar(slug === 'speed_bump' ? "Dos-d'âne mis en file d'attente" : 'حفرة mis en file d’attente', 'OK');
       return;
     }
 
-    // Online: submit immediately
-    showSnackbar(slug === 'speed_bump' ? 'Dos-d\'âne enregistré.' : 'حفرة enregistré.', 'Ajouter détails');
+    showSnackbar(slug === 'speed_bump' ? "Dos-d'âne enregistré." : 'حفرة enregistré.', 'Ajouter détails');
 
     try {
       const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
@@ -519,7 +537,6 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error('Delete hazard error', err);
       Alert.alert('Erreur', 'Impossible de supprimer le signalement.');
 
-      // refetch after failure
       if (region) {
         const z = zoomFromRegion(region);
         fetchNearby(region.latitude, region.longitude, z, region);
@@ -533,23 +550,80 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     fetchNearby(region.latitude, region.longitude, z, region);
   }, [region, fetchNearby]);
 
-  // Sync a queued report to the server
-  const syncQueuedReport = useCallback(async (report: QueuedHazardReport) => {
-    if (!isConnected) {
-      throw new Error('Cannot sync while offline');
-    }
+  // Sync a queued report to the server (single)
+  const syncQueuedReport = useCallback(
+    async (report: QueuedHazardReport) => {
+      if (!isConnected) {
+        throw new Error('Cannot sync while offline');
+      }
 
-    try {
-      const { id, queuedAt, categorySlug, categoryLabel, ...payload } = report;
-      const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
-      const newHazard: RoadHazard = res.data.data;
-      upsertHazard(newHazard);
-      return res.data;
-    } catch (err) {
-      console.error('Sync queued report error', err);
-      throw err;
-    }
-  }, [isConnected]);
+      try {
+        const { id, queuedAt, categorySlug, categoryLabel, ...payload } = report;
+        const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
+        const newHazard: RoadHazard = res.data.data;
+        upsertHazard(newHazard);
+        return res.data;
+      } catch (err) {
+        console.error('Sync queued report error', err);
+        throw err;
+      }
+    },
+    [isConnected]
+  );
+
+  // Bulk sync queued reports to the server
+  const syncBulkQueuedReports = useCallback(
+    async (reports: QueuedHazardReport[]) => {
+      if (!isConnected) {
+        throw new Error('Cannot sync while offline');
+      }
+
+      if (reports.length === 0) {
+        return { success: 0, failed: 0, results: [] };
+      }
+
+      try {
+        const firstReport = reports[0];
+
+        const items = reports.map((report) => {
+          const { id, queuedAt, categorySlug, categoryLabel, device_uuid, platform, app_version, locale, ...item } = report;
+          return {
+            ...item,
+            client_ref: id,
+          };
+        });
+
+        const payload = {
+          device_uuid: firstReport.device_uuid,
+          platform: firstReport.platform,
+          app_version: firstReport.app_version,
+          locale: firstReport.locale,
+          items,
+        };
+
+        console.log('Bulk sync payload:', payload);
+
+        const res = await api.post(buildRoute(ApiRoutes.hazards.bulk), payload);
+        const responseData = res.data;
+
+        if (responseData.data && Array.isArray(responseData.data)) {
+          responseData.data.forEach((hazard: RoadHazard) => {
+            upsertHazard(hazard);
+          });
+        }
+
+        return {
+          success: responseData.meta?.created_count || reports.length,
+          failed: responseData.meta?.failed_count || 0,
+          results: responseData.data || [],
+        };
+      } catch (err) {
+        console.error('Bulk sync error', err);
+        throw err;
+      }
+    },
+    [isConnected]
+  );
 
   return (
     <HazardContext.Provider
@@ -581,6 +655,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         deleteHazard,
         refreshHazards,
         syncQueuedReport,
+        syncBulkQueuedReports,
       }}
     >
       {children}

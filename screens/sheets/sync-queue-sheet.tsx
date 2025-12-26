@@ -7,38 +7,41 @@ import { useUI } from '@/contexts/4-ui-context';
 
 const SyncQueueSheet = (props: SheetProps) => {
   const { queue, removeFromQueue, clearQueue } = useOfflineQueueStore();
-  const { syncQueuedReport, hazards } = useHazards();
+  const { syncBulkQueuedReports } = useHazards();
   const { showSnackbar } = useUI();
   const [syncing, setSyncing] = useState(false);
 
   const handleSyncAll = async () => {
+    if (queue.length === 0) {
+      showSnackbar('Aucun signalement à synchroniser', 'Info');
+      return;
+    }
+
     setSyncing(true);
-    let successCount = 0;
-    let failCount = 0;
 
-    for (const report of queue) {
-      try {
-        await syncQueuedReport(report);
-        await removeFromQueue(report.id);
-        successCount++;
-      } catch (error) {
-        console.error('Failed to sync report:', error);
-        failCount++;
+    try {
+      // Bulk sync all reports in one API call
+      const result = await syncBulkQueuedReports(queue);
+
+      // Clear successfully synced items
+      if (result.success > 0) {
+        await clearQueue();
+        showSnackbar(`${result.success} signalement(s) synchronisé(s)`, 'OK');
       }
-    }
 
-    setSyncing(false);
+      if (result.failed > 0) {
+        showSnackbar(`${result.failed} échec(s)`, 'Erreur');
+      }
 
-    if (successCount > 0) {
-      showSnackbar(`${successCount} signalement(s) synchronisé(s)`, 'OK');
-    }
-
-    if (failCount > 0) {
-      showSnackbar(`${failCount} échec(s)`, 'Erreur');
-    }
-
-    if (queue.length === 0 || successCount === queue.length) {
-      SheetManager.hide('sync-queue-sheet');
+      // Close sheet if all items synced successfully
+      if (result.failed === 0) {
+        SheetManager.hide('sync-queue-sheet');
+      }
+    } catch (error) {
+      console.error('Bulk sync failed:', error);
+      showSnackbar('Erreur de synchronisation', 'Erreur');
+    } finally {
+      setSyncing(false);
     }
   };
 
