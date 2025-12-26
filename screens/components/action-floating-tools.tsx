@@ -16,6 +16,7 @@ import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteSummarySection } from './route-summary';
 import { SheetManager } from 'react-native-actions-sheet';
+import { OfflineIndicator } from '@/components/offline-indicator';
 
 export const ActionFloatingTools = () => {
   const { theme } = useTheme();
@@ -99,7 +100,8 @@ export const ActionFloatingTools = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, gap: 8 }}>
+          <OfflineIndicator />
           {!isLoading && (
             <RouteSummarySection
               routeLoading={routeLoading}

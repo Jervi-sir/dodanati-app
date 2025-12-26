@@ -359,9 +359,6 @@ export const MapScreen = () => {
         )}
       </MapView>
 
-      {/* Offline indicator */}
-      <OfflineIndicator />
-
       {/* Floating tools */}
       <ActionFloatingTools />
       {/* Sheets & Banners */}

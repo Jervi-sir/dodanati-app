@@ -3,6 +3,9 @@ import { Alert } from 'react-native';
 import api from '@/utils/api/axios-instance';
 import { ApiRoutes, buildRoute } from '@/utils/api/api';
 import { useLocation } from './3-location-context';
+import { useHazards, RoadHazard } from './5-hazard-context';
+import { useUI } from './4-ui-context';
+import { useNetworkStatus } from '@/hooks/use-network-status';
 
 export type RouteSummaryCategory = {
   category_id: number;
@@ -42,6 +45,9 @@ export const useRoute = () => {
 
 export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentLat, currentLng, region } = useLocation();
+  const { hazards } = useHazards();
+  const { showSnackbar } = useUI();
+  const { isConnected } = useNetworkStatus();
 
   const [destination, setDestination] = useState<Destination>(null);
   const [routeOrigin, setRouteOrigin] = useState<RouteOrigin>(null);
@@ -56,18 +62,41 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setRouteCoords([]);
   };
 
-  const fetchRouteSummary = async (fromLat: number, fromLng: number, toLat: number, toLng: number) => {
+  const fetchRouteSummary = async (
+    fromLat: number,
+    fromLng: number,
+    toLat: number,
+    toLng: number,
+    waypoints: { latitude: number; longitude: number }[]
+  ) => {
+    if (!isConnected) {
+      console.log('Offline: calculating route summary locally');
+      try {
+        const summary = calculateOfflineRouteSummary(hazards, fromLat, fromLng, toLat, toLng, waypoints);
+        setRouteSummary(summary);
+        showSnackbar('Mode hors ligne : estimation locale', 'Info');
+      } catch (e) {
+        console.error('Offline summary error', e);
+        Alert.alert('Erreur', 'Impossible de calculer le trajet hors ligne.');
+      }
+      return;
+    }
+
     try {
-      const res = await api.get(buildRoute(ApiRoutes.hazardsRouteSummary), {
-        params: {
+      const res = await api.post(
+        buildRoute(ApiRoutes.hazardsRouteSummary),
+        {
           from_lat: fromLat,
           from_lng: fromLng,
           to_lat: toLat,
           to_lng: toLng,
           corridor_width_m: 80,
+          waypoints,
         },
-        headers: { 'X-Requires-Auth': false },
-      });
+        {
+          headers: { 'X-Requires-Auth': false },
+        }
+      );
       const data = res?.data?.data;
       if (data) {
         setRouteSummary({
@@ -97,11 +126,13 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (json.routes.length > 1) {
           console.log(`Found ${json.routes.length} routes. Future: Analyze them for hazards.`);
         }
+        return polyline;
       }
     } catch (err) {
       console.error('Route polyline error', err);
       setRouteCoords([]);
     }
+    return [];
   };
 
   const selectDestination = async (coord: { latitude: number; longitude: number }) => {
@@ -115,10 +146,13 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setRouteLoading(true);
 
     try {
-      await Promise.all([
-        fetchRouteSummary(fromLat, fromLng, dest.lat, dest.lng),
-        fetchRoutePolyline(fromLat, fromLng, dest.lat, dest.lng),
-      ]);
+      // 1. Fetch geometry first
+      const points = await fetchRoutePolyline(fromLat, fromLng, dest.lat, dest.lng);
+
+      // 2. Fetch summary using geometry
+      if (points.length > 0) {
+        await fetchRouteSummary(fromLat, fromLng, dest.lat, dest.lng, points);
+      }
     } finally {
       setRouteLoading(false);
     }
@@ -139,4 +173,143 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
     </RouteContext.Provider>
   );
+};
+
+// --- Offline Math Helpers ---
+
+const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const distanceToSegmentMeters = (
+  pLat: number,
+  pLng: number,
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number
+) => {
+  const midLat = (pLat + aLat + bLat) / 3.0;
+  const mPerDegLat = 111320.0;
+  const mPerDegLng = 111320.0 * Math.cos(midLat * (Math.PI / 180));
+
+  const xA = 0;
+  const yA = 0;
+  const xB = (bLng - aLng) * mPerDegLng;
+  const yB = (bLat - aLat) * mPerDegLat;
+  const xP = (pLng - aLng) * mPerDegLng;
+  const yP = (pLat - aLat) * mPerDegLat;
+
+  const dx = xB - xA;
+  const dy = yB - yA;
+
+  const lenSq = dx * dx + dy * dy;
+  let t = 0;
+  if (lenSq > 0.0001) {
+    t = (xP * dx + yP * dy) / lenSq;
+    if (t < 0.0) t = 0.0;
+    else if (t > 1.0) t = 1.0;
+  }
+
+  const nearX = xA + t * dx;
+  const nearY = yA + t * dy;
+  const distX = xP - nearX;
+  const distY = yP - nearY;
+
+  return Math.sqrt(distX * distX + distY * distY);
+};
+
+const calculateOfflineRouteSummary = (
+  hazards: RoadHazard[],
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+  waypoints: { latitude: number; longitude: number }[]
+): RouteSummary => {
+  const corridorWidthM = 80;
+
+  // 1. Filter hazards within corridor
+  const filtered = hazards.filter((h) => {
+    if (!h.is_active) return false;
+
+    let minDist = Infinity;
+
+    if (waypoints && waypoints.length > 1) {
+      // Check polyline
+      for (let i = 0; i < waypoints.length - 1; i++) {
+        const p1 = waypoints[i];
+        const p2 = waypoints[i + 1];
+
+        // Optimization: Quick bounding box check for segment
+        const segMinLat = Math.min(p1.latitude, p2.latitude) - 0.002;
+        const segMaxLat = Math.max(p1.latitude, p2.latitude) + 0.002;
+        const segMinLng = Math.min(p1.longitude, p2.longitude) - 0.002;
+        const segMaxLng = Math.max(p1.longitude, p2.longitude) + 0.002;
+
+        if (h.lat < segMinLat || h.lat > segMaxLat || h.lng < segMinLng || h.lng > segMaxLng) {
+          continue;
+        }
+
+        const d = distanceToSegmentMeters(h.lat, h.lng, p1.latitude, p1.longitude, p2.latitude, p2.longitude);
+        if (d < minDist) minDist = d;
+        if (minDist <= corridorWidthM) return true;
+      }
+    } else {
+      // Check straight line (fallback)
+      minDist = distanceToSegmentMeters(h.lat, h.lng, fromLat, fromLng, toLat, toLng);
+    }
+
+    return minDist <= corridorWidthM;
+  });
+
+  // 2. Group by category
+  const byCategoryMap = new Map<number, RouteSummaryCategory>();
+
+  filtered.forEach((h) => {
+    if (!h.category) return;
+    const catId = h.road_hazard_category_id;
+
+    if (!byCategoryMap.has(catId)) {
+      byCategoryMap.set(catId, {
+        category_id: catId,
+        slug: h.category.slug,
+        name_en: h.category.name_en,
+        name_fr: h.category.name_fr,
+        name_ar: h.category.name_ar,
+        count: 0,
+      });
+    }
+
+    const entry = byCategoryMap.get(catId)!;
+    entry.count++;
+  });
+
+  // 3. Calculate distance
+  let distanceKm = 0;
+  if (waypoints && waypoints.length > 1) {
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      distanceKm += getDistanceKm(
+        waypoints[i].latitude,
+        waypoints[i].longitude,
+        waypoints[i + 1].latitude,
+        waypoints[i + 1].longitude
+      );
+    }
+  } else {
+    distanceKm = getDistanceKm(fromLat, fromLng, toLat, toLng);
+  }
+
+  return {
+    distance_km: distanceKm,
+    hazards_count: filtered.length,
+    by_category: Array.from(byCategoryMap.values()),
+  };
 };

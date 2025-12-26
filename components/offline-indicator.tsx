@@ -70,16 +70,16 @@ export const OfflineIndicator = () => {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
+    // position: 'absolute',
+    // top: 0,
+    // left: 0,
+    // right: 0,
+    // zIndex: 1000,
   },
   banner: {
-    paddingVertical: 12,
+    paddingVertical: 8,
     paddingHorizontal: 16,
-    paddingTop: 50, // Account for status bar
+    borderRadius: 12,
   },
   bannerOffline: {
     backgroundColor: '#FF3B30',
