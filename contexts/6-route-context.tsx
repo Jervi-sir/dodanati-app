@@ -130,7 +130,10 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.error('Route polyline error', err);
+      console.error('Route polyline error', err);
+      // Don't crash here - return empty array so summary can try fallback
       setRouteCoords([]);
+      return [];
     }
     return [];
   };
@@ -150,9 +153,9 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const points = await fetchRoutePolyline(fromLat, fromLng, dest.lat, dest.lng);
 
       // 2. Fetch summary using geometry
-      if (points.length > 0) {
-        await fetchRouteSummary(fromLat, fromLng, dest.lat, dest.lng, points);
-      }
+      // 2. Fetch summary using geometry (or empty if failed)
+      // Even if points is empty (offline), we call summary to trigger the offline straight-line fallback
+      await fetchRouteSummary(fromLat, fromLng, dest.lat, dest.lng, points);
     } finally {
       setRouteLoading(false);
     }

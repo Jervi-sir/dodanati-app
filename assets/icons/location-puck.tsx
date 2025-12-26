@@ -135,7 +135,7 @@ export const LocationPuck = memo(function LocationPuck({
 
         {/* Cone (behind everything), rotated by heading */}
         {showCone && (
-          <G rotation={h} origin={`${cx},${cy}`}>
+          <G origin={`${cx},${cy}`}>
             <Path d={conePath} fill={color} opacity={coneOpacity} />
           </G>
         )}

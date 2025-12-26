@@ -131,6 +131,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     let headingSub: Location.LocationSubscription | null = null;
 
     const startLocationTracking = async () => {
+      let hasCentered = false;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -157,32 +158,34 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           console.warn('watchHeadingAsync not available', e);
         }
 
-        // Get initial position quickly
-        const initialLoc = await Location.getCurrentPositionAsync({});
-        const lat = initialLoc.coords.latitude ?? DEFAULT_LAT;
-        const lng = initialLoc.coords.longitude ?? DEFAULT_LNG;
+        // 1. Try Last Known Position (Instant)
+        try {
+          const lastKnown = await Location.getLastKnownPositionAsync({});
+          if (lastKnown && !isSimulatingRef.current) {
+            const { latitude, longitude } = lastKnown.coords;
+            setCurrentLat(latitude);
+            setCurrentLng(longitude);
 
-        if (!isSimulatingRef.current) {
-          setCurrentLat(lat);
-          setCurrentLng(lng);
+            const newRegion = {
+              latitude,
+              longitude,
+              latitudeDelta: 0.03,
+              longitudeDelta: 0.03,
+            };
+            setRegion(newRegion);
+            // Try explicit animation
+            mapRef.current?.animateToRegion(newRegion, 100);
 
-          const initialRegion: Region = {
-            latitude: lat,
-            longitude: lng,
-            latitudeDelta: 0.03,
-            longitudeDelta: 0.03,
-          };
-
-          setRegion(initialRegion);
-
-          setTimeout(() => {
-            mapRef.current?.animateToRegion(initialRegion, 500);
-          }, 300);
+            hasCentered = true;
+            setLocationLoading(false);
+          }
+        } catch (e) {
+          console.log("No last known location");
         }
 
-        setLocationLoading(false);
-
-        // Start watching location (lat/lng)
+        // 2. Start watching position (Stream)
+        // This handles "current" location updates. We don't need to await getCurrentPositionAsync
+        // blocking the stream. If we didn't get lastKnown, this will eventually trigger and set coords.
         positionSub = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
@@ -191,22 +194,31 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           },
           (loc) => {
             if (!isSimulatingRef.current) {
-              setCurrentLat(loc.coords.latitude);
-              setCurrentLng(loc.coords.longitude);
+              const { latitude, longitude } = loc.coords;
+              setCurrentLat(latitude);
+              setCurrentLng(longitude);
 
-              // ⚠️ Do NOT overwrite compass heading with GPS heading by default.
-              // GPS heading is only reliable when moving.
-              // If you want: enable only when speed is high:
-              /*
-              const gpsHeading = loc.coords.heading;
-              const speed = loc.coords.speed ?? 0;
-              if (typeof gpsHeading === 'number' && gpsHeading >= 0 && speed > 1) {
-                setCurrentHeading(smoothHeading(gpsHeading));
+              if (!hasCentered) {
+                const newRegion = {
+                  latitude,
+                  longitude,
+                  latitudeDelta: 0.03,
+                  longitudeDelta: 0.03,
+                };
+                setRegion(newRegion);
+                mapRef.current?.animateToRegion(newRegion, 500);
+                hasCentered = true;
               }
-              */
+
+              // Ensure loading is off once we get *live* data
+              setLocationLoading(false);
             }
           }
         );
+
+        // Optional: Force a single high-accuracy update in parallel if needed, 
+        // but watchPositionAsync normally fires immediately.
+
       } catch (err) {
         console.error('Location error', err);
         setLocationLoading(false);
