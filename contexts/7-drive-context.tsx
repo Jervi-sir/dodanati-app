@@ -6,6 +6,7 @@ import * as Location from 'expo-location';
 import { getDistance, getRhumbLineBearing } from 'geolib';
 import { useHazards } from './5-hazard-context';
 import { useLocation } from './3-location-context';
+import { ALERT_DISTANCE_METERS, SPEECH_COOLDOWN_MS } from '@/utils/const/app-constants';
 
 type DriveContextType = {
   isDriveMode: boolean;
@@ -22,10 +23,6 @@ export const useDrive = () => {
   return ctx;
 };
 
-// Thresholds
-const ALERT_DISTANCE_METERS = 300; // Alert when 300m away
-const SPEECH_COOLDOWN_MS = 30000; // Don't repeat same hazard for 30s
-const REFRESH_INTERVAL_MS = 2000; // Check every 2s
 
 export const DriveProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { mapRef, currentLat, currentLng, locationLoading } = useLocation();

@@ -107,11 +107,32 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.error('Route summary error', err);
-      Alert.alert('Erreur', 'Impossible de calculer le trajet.');
+      // Fallback to offline calculation if API fails
+      try {
+        const summary = calculateOfflineRouteSummary(hazards, fromLat, fromLng, toLat, toLng, waypoints);
+        setRouteSummary(summary);
+        showSnackbar('Erreur connexion : estimation locale', 'Info');
+      } catch (e) {
+        Alert.alert('Erreur', 'Impossible de calculer le trajet.');
+      }
     }
   };
 
   const fetchRoutePolyline = async (fromLat: number, fromLng: number, toLat: number, toLng: number) => {
+    // Helper to set fallback straight line
+    const setStraightLineFallback = () => {
+      const straightLine = [
+        { latitude: fromLat, longitude: fromLng },
+        { latitude: toLat, longitude: toLng },
+      ];
+      setRouteCoords(straightLine);
+      return straightLine;
+    };
+
+    if (!isConnected) {
+      return setStraightLineFallback();
+    }
+
     try {
       const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson&alternatives=true`;
       const res = await fetch(url);
@@ -130,12 +151,11 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.error('Route polyline error', err);
-      console.error('Route polyline error', err);
-      // Don't crash here - return empty array so summary can try fallback
-      setRouteCoords([]);
-      return [];
+      // Fallback to straight line on error
+      return setStraightLineFallback();
     }
-    return [];
+    // Fallback if no routes found
+    return setStraightLineFallback();
   };
 
   const selectDestination = async (coord: { latitude: number; longitude: number }) => {

@@ -11,6 +11,7 @@ import { useUI } from './4-ui-context';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { useOfflineQueueStore, QueuedHazardReport } from '@/stores/offline-queue-store';
+import { APP_VERSION, CACHE_TTL, CACHE_TTL_MS, DEFAULT_LOCALE, STORAGE_KEY_CACHE_META, STORAGE_KEY_CLUSTERS, STORAGE_KEY_HAZARDS } from '@/utils/const/app-constants';
 
 export type RoadHazardCategoryTaxonomyItem = {
   id?: number;
@@ -113,10 +114,6 @@ type HazardContextType = {
   ) => Promise<{ success: number; failed: number; results: any[] }>;
 };
 
-const STORAGE_KEY_HAZARDS = 'offline_hazards_cache_v1';
-const STORAGE_KEY_CLUSTERS = 'offline_hazard_clusters_cache_v1';
-const STORAGE_KEY_CACHE_META = 'offline_cache_metadata_v1';
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
 
 // ✅ Fallback taxonomy if server taxonomy.categories is missing/empty/fails
 const FALLBACK_CATEGORIES: RoadHazardCategoryTaxonomyItem[] = [
@@ -455,8 +452,8 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       lat,
       lng,
       platform: Platform.OS,
-      app_version: '1.0.0',
-      locale: 'fr-DZ',
+      app_version: APP_VERSION,
+      locale: DEFAULT_LOCALE,
     };
 
     SheetManager.hide('hazard-report-sheet');
