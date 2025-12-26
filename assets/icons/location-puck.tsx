@@ -1,6 +1,6 @@
 // components/LocationPuck.tsx
 import React, { memo, useMemo } from "react";
-import { ViewStyle } from "react-native";
+import { View, ViewStyle } from "react-native";
 import Svg, { Defs, RadialGradient, Stop, Circle, Path, G } from "react-native-svg";
 
 type Props = {
@@ -113,58 +113,59 @@ export const LocationPuck = memo(function LocationPuck({
   }, [cx, cy, ringR]);
 
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${vb} ${vb}`}
-      style={style}
-    >
-      <Defs>
-        <RadialGradient id="puckGlow" cx="50%" cy="50%" r="50%">
-          <Stop offset="0%" stopColor={color} stopOpacity="0.35" />
-          <Stop offset="55%" stopColor={color} stopOpacity="0.12" />
-          <Stop offset="100%" stopColor={color} stopOpacity="0.0" />
-        </RadialGradient>
+    <View style={[{ width: size, height: size }, style]}>
+      <Svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${vb} ${vb}`}
+      >
+        <Defs>
+          <RadialGradient id="puckGlow" cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor={color} stopOpacity="0.35" />
+            <Stop offset="55%" stopColor={color} stopOpacity="0.12" />
+            <Stop offset="100%" stopColor={color} stopOpacity="0.0" />
+          </RadialGradient>
 
-        <RadialGradient id="dotGrad" cx="35%" cy="35%" r="75%">
-          <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
-          <Stop offset="35%" stopColor={color} stopOpacity="0.95" />
-          <Stop offset="100%" stopColor={color} stopOpacity="1.0" />
-        </RadialGradient>
-      </Defs>
+          <RadialGradient id="dotGrad" cx="35%" cy="35%" r="75%">
+            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
+            <Stop offset="35%" stopColor={color} stopOpacity="0.95" />
+            <Stop offset="100%" stopColor={color} stopOpacity="1.0" />
+          </RadialGradient>
+        </Defs>
 
-      {/* Cone (behind everything), rotated by heading */}
-      {showCone && (
-        <G rotation={h} origin={`${cx},${cy}`}>
-          <Path d={conePath} fill={color} opacity={coneOpacity} />
-        </G>
-      )}
+        {/* Cone (behind everything), rotated by heading */}
+        {showCone && (
+          <G rotation={h} origin={`${cx},${cy}`}>
+            <Path d={conePath} fill={color} opacity={coneOpacity} />
+          </G>
+        )}
 
-      {/* Soft glow */}
-      <Circle cx={cx} cy={cy} r={glowR} fill="url(#puckGlow)" />
+        {/* Soft glow */}
+        <Circle cx={cx} cy={cy} r={glowR} fill="url(#puckGlow)" />
 
-      {/* White ring */}
-      <Circle
-        cx={cx}
-        cy={cy}
-        r={ringR}
-        fill="none"
-        stroke="#FFFFFF"
-        strokeWidth={ringStroke}
-        opacity={0.95}
-      />
+        {/* White ring */}
+        <Circle
+          cx={cx}
+          cy={cy}
+          r={ringR}
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth={ringStroke}
+          opacity={0.95}
+        />
 
-      {/* Direction nub (optional), rotate with heading */}
-      {showCone && (
-        <G rotation={h} origin={`${cx},${cy}`}>
-          <Path d={nubPath} fill="#FFFFFF" opacity={0.95} />
-        </G>
-      )}
+        {/* Direction nub (optional), rotate with heading */}
+        {showCone && (
+          <G rotation={h} origin={`${cx},${cy}`}>
+            <Path d={nubPath} fill="#FFFFFF" opacity={0.95} />
+          </G>
+        )}
 
-      {/* Blue dot */}
-      <Circle cx={cx} cy={cy} r={dotR} fill="url(#dotGrad)" />
-      {/* tiny inner highlight */}
-      <Circle cx={cx - 2.6} cy={cy - 3.0} r={2.2} fill="#FFFFFF" opacity={0.8} />
-    </Svg>
+        {/* Blue dot */}
+        <Circle cx={cx} cy={cy} r={dotR} fill="url(#dotGrad)" />
+        {/* tiny inner highlight */}
+        <Circle cx={cx - 2.6} cy={cy - 3.0} r={2.2} fill="#FFFFFF" opacity={0.8} />
+      </Svg>
+    </View>
   );
 });

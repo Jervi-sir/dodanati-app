@@ -283,7 +283,7 @@ export const MapScreen = () => {
           setRegion(r);
         }}
         provider={mapProvider === 'google' ? PROVIDER_GOOGLE : undefined}
-        showsMyLocationButton={true}
+        // showsMyLocationButton={true}
         showsUserLocation={false}
         onPress={(e) => {
           if (isSimulatingLocation) {
@@ -299,11 +299,12 @@ export const MapScreen = () => {
         {/* User Location Marker (Simulated or Real) */}
         {currentLat && currentLng && (
           <Marker
+            key="user-puck"
             coordinate={{ latitude: currentLat, longitude: currentLng }}
             title={isSimulatingLocation ? "Position simulée" : "Ma position"}
             anchor={{ x: 0.5, y: 0.5 }}
-            rotation={currentHeading || 0}
             flat={true}
+            tracksViewChanges={true}
             zIndex={5}
           >
             <LocationPuck
