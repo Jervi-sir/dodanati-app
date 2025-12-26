@@ -83,6 +83,7 @@ type HazardContextType = {
   clusters: HazardCluster[];
   mode: HazardMode;
   totalInRadius: number;
+  hazardCounts: { speed_bump: number; pothole: number };
 
   categories: RoadHazardCategoryTaxonomyItem[];
   categoriesLoading: boolean;
@@ -182,6 +183,17 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [severity, setSeverity] = useState(3);
   const [note, setNote] = useState('');
+
+  const hazardCounts = React.useMemo(() => {
+    const counts = { speed_bump: 0, pothole: 0 };
+    if (mode === 'points') {
+      hazards.forEach((h) => {
+        if (h.category?.slug === 'speed_bump') counts.speed_bump++;
+        if (h.category?.slug === 'pothole') counts.pothole++;
+      });
+    }
+    return counts;
+  }, [hazards, mode]);
 
   // Track last fetch to avoid spamming
   const lastFetchRef = useRef<{ lat: number; lng: number; zoom: number } | null>(null);
@@ -632,6 +644,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         clusters,
         mode,
         totalInRadius,
+        hazardCounts,
 
         categories,
         categoriesLoading,

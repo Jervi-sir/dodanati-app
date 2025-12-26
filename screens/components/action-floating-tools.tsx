@@ -21,7 +21,7 @@ export const ActionFloatingTools = () => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { isDriveMode, toggleDriveMode } = useDrive();
-  const { hazardsLoading, handleQuickReport, mode: hazardMode, totalInRadius, } = useHazards();
+  const { hazardsLoading, handleQuickReport, mode: hazardMode, totalInRadius, hazardCounts } = useHazards();
   const { bootLoading } = useDevice();
   const { locationLoading, recenterOnUser, isSimulatingLocation, toggleSimulationMode } = useLocation();
   const { routeSummary, routeLoading, clearRoute } = useRoute();
@@ -169,25 +169,29 @@ export const ActionFloatingTools = () => {
               </TouchableOpacity>
 
               {/* Optional: top badge showing total hazards in radius */}
-              <View style={{
-                alignSelf: 'center',
-                zIndex: 20,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 999,
-                backgroundColor: theme.mode === 'dark' ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.85)',
-                borderWidth: 1,
-                borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-              }}>
-                <Text style={{
-                  fontSize: 12,
-                  color: theme.mode === 'dark' ? '#E5E7EB' : '#111827',
-                  fontWeight: '600',
-                }}>
-                  {hazardMode === 'clusters' ? 'Vue globale' : 'Vue détaillée'} • Total: {totalInRadius}
-                </Text>
-              </View>
+              {hazardMode === 'clusters'
+                ? null
+                :
 
+                <View style={{
+                  alignSelf: 'center',
+                  zIndex: 20,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 999,
+                  backgroundColor: theme.mode === 'dark' ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.85)',
+                  borderWidth: 1,
+                  borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                }}>
+                  <Text style={{
+                    fontSize: 12,
+                    color: theme.mode === 'dark' ? '#E5E7EB' : '#111827',
+                    fontWeight: '600',
+                  }}>
+                    {`Vue détaillée • Total: ${totalInRadius} (${hazardCounts.speed_bump} 🟠, ${hazardCounts.pothole} 🔴)`}
+                  </Text>
+                </View>
+              }
 
             </>
           )}
