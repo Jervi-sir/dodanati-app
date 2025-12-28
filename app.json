@@ -23,8 +23,10 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
+      "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
+      "windowTranslucentNavigation": true,
       "package": "com.jervi.dodanati",
       "config": {
         "googleMaps": {

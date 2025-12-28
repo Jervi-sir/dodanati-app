@@ -2,6 +2,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   RefreshControl,
   StyleSheet,
   Text,
@@ -52,6 +53,7 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [nextPage, setNextPage] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const fetchPage = useCallback(
     async (pageToLoad: number, opts?: { replace?: boolean }) => {
@@ -107,11 +109,23 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
 
     const createdAt = item.created_at?.slice(0, 16).replace('T', ' ') ?? '';
 
+    const isSelected = selectedId === item.id;
+
     return (
       <TouchableOpacity
-        style={styles.row}
+        style={[
+          styles.row,
+          isSelected && {
+            backgroundColor: theme.colors.accentSoft,
+            borderColor: theme.colors.accent,
+            borderWidth: 1
+          }
+        ]}
         activeOpacity={0.8}
-        onPress={() => onPressItem?.(item)}
+        onPress={() => {
+          setSelectedId(item.id);
+          onPressItem?.(item);
+        }}
       >
         <View style={styles.rowLeft}>
           <View
@@ -138,7 +152,7 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
     );
   };
 
-  const keyExtractor = (item: HazardHistoryItem) => String(item.id);
+  const keyExtractor = (item: HazardHistoryItem, index: number) => String(index);
 
   return (
     <ActionSheet
@@ -147,7 +161,8 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
       containerStyle={styles.sheetContainer}
       indicatorStyle={styles.sheetIndicator}
       onOpen={handleOnOpen}
-      snapPoints={[70]}
+      onClose={() => setSelectedId(null)}
+      safeAreaInsets={{ top: Dimensions.get('window').height * 0.55, left: 0, right: 0, bottom: 0 }}
     >
       <View style={styles.sheetHeader}>
         <Text style={styles.sheetTitle}>Mes signalements</Text>

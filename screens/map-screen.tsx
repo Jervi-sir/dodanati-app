@@ -190,7 +190,7 @@ export const MapScreen = () => {
           coordinate={{ latitude: Number(h.lat), longitude: Number(h.lng) }}
           onPress={() => handleHazardPress(h)}
           zIndex={isSelected ? 999 : 10}
-          tracksViewChanges={false} // Re-enable for performance, custom view should be stable
+          tracksViewChanges={true} // Fixed: Ensure markers are always rendered
         >
           <HazardMarker hazard={h} selected={isSelected} />
         </Marker>
@@ -204,13 +204,15 @@ export const MapScreen = () => {
     return clusteredFromPoints.clusters.map((c) => {
       const { hasSpeedBump, hasPothole } = c.composition;
       const isMixed = hasSpeedBump && hasPothole;
+      // Stable key based on content IDs rather than unstable coordinates
+      const clusterKey = `vcluster-${c.ids.sort((a, b) => a - b).join('-')}`;
 
       return (
         <Marker
-          key={`vcluster-${c.lat}-${c.lng}-${c.count}`}
+          key={clusterKey}
           coordinate={{ latitude: c.lat, longitude: c.lng }}
           zIndex={20}              // 👈 higher than user location
-          tracksViewChanges={false}
+          tracksViewChanges={true} // Fixed: Ensure clusters are always rendered
           anchor={{ x: 0.5, y: 0.5 }}
           onPress={() => {
             const next: Region = {

@@ -17,9 +17,8 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
     SheetManager.hide(props.sheetId);
   };
 
-  // Optional: allow caller to pass payload: { onShowHistory: () => void }
-  const onShowHistory =
-    (props.payload as { onShowHistory?: () => void } | undefined)?.onShowHistory;
+
+  const onNavigateToHazard = (props.payload as unknown as { onNavigateToHazard?: (item: any) => void })?.onNavigateToHazard;
 
   return (
     <ActionSheet
@@ -114,7 +113,9 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
             close();
             // Delay to avoid sheet transition conflicts
             setTimeout(() => {
-              SheetManager.show('hazard-history-sheet');
+              SheetManager.show('hazard-history-sheet', {
+                payload: { onPressItem: onNavigateToHazard }
+              } as any);
             }, 400);
           }}
           activeOpacity={0.8}

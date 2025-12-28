@@ -8,7 +8,7 @@ import { useLocation } from '@/contexts/3-location-context';
 import { useHazards } from '@/contexts/5-hazard-context';
 import { useRoute } from '@/contexts/6-route-context';
 import { useDrive } from '@/contexts/7-drive-context';
-import { ActivityIndicator, Animated, PanResponder, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, PanResponder, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteSummarySection } from './route-summary';
 import { SheetManager } from 'react-native-actions-sheet';
@@ -22,7 +22,7 @@ export const ActionFloatingTools = () => {
   const { isDriveMode, toggleDriveMode } = useDrive();
   const { hazardsLoading, handleQuickReport, mode: hazardMode, totalInRadius, hazardCounts } = useHazards();
   const { bootLoading } = useDevice();
-  const { locationLoading, recenterOnUser, isSimulatingLocation, toggleSimulationMode } = useLocation();
+  const { locationLoading, recenterOnUser, isSimulatingLocation, toggleSimulationMode, mapRef } = useLocation();
   const { routeSummary, routeLoading, clearRoute } = useRoute();
 
   const pan = useRef(new Animated.Value(0)).current;
@@ -94,7 +94,7 @@ export const ActionFloatingTools = () => {
     }} pointerEvents="box-none">
       {/* Right Column: Utilities */}
       <View style={{
-        paddingTop: 60, paddingHorizontal: 16,
+        paddingTop: Platform.OS === 'ios' ? 55 : 40, paddingHorizontal: 16,
         flexDirection: 'row', alignItems: 'flex-start', gap: 10,
         flex: 1
       }}>
@@ -114,7 +114,18 @@ export const ActionFloatingTools = () => {
           <TouchableOpacity
             style={iconBtnStyle}
             onPress={() => {
-              SheetManager.show('map-params-sheet')
+              SheetManager.show('map-params-sheet', {
+                payload: {
+                  onNavigateToHazard: (item: { lat: number, lng: number }) => {
+                    mapRef.current?.animateToRegion({
+                      latitude: item.lat,
+                      longitude: item.lng,
+                      latitudeDelta: 0.005,
+                      longitudeDelta: 0.005,
+                    }, 500);
+                  }
+                }
+              } as any)
             }}
             activeOpacity={0.8}
           >

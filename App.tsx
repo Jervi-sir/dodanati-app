@@ -1,4 +1,5 @@
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Platform } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { SheetProvider } from 'react-native-actions-sheet';
 import { ThemeProvider } from './contexts/1-theme-context';
 import { DeviceProvider } from './contexts/2-device-context';
@@ -21,8 +22,10 @@ export default function App() {
                 <RouteProvider>
                   <DriveProvider>
                     <SheetProvider>
-                      <MapScreen />
-                      <SheetsHost />
+                      <SafeAreaView style={{ flex: 1 }} edges={Platform.OS === 'android' ? ['bottom', 'left', 'right'] : []}>
+                        <MapScreen />
+                        <SheetsHost />
+                      </SafeAreaView>
                     </SheetProvider>
                   </DriveProvider>
                 </RouteProvider>
