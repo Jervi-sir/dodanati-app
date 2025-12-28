@@ -64,14 +64,11 @@ export const ActionFloatingTools = () => {
       position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
       paddingBottom: insets.bottom, justifyContent: 'flex-end',
     }} pointerEvents="box-none">
-
-
       {/* Right Column: Utilities */}
       <View style={{
-        position: 'absolute', top: 60, paddingHorizontal: 16,
-        flexDirection: 'row', alignItems: 'flex-start', gap: 10
+        paddingTop: 60, paddingHorizontal: 16,
+        flexDirection: 'row', alignItems: 'flex-start', gap: 10,
       }}>
-
         <View style={{ alignItems: 'flex-end', gap: 12, marginBottom: 40, }} pointerEvents="box-none">
           <TouchableOpacity
             style={[
@@ -94,6 +91,10 @@ export const ActionFloatingTools = () => {
           >
             <SettingsIcon size={22} color={theme.colors.text} />
           </TouchableOpacity>
+
+          <View style={[iconBtnStyle, { opacity: hazardsLoading ? 1 : 0 }]}>
+            <ActivityIndicator size="small" color={theme.colors.accent} />
+          </View>
         </View>
 
         <View style={{ flex: 1, gap: 8 }}>
@@ -106,7 +107,72 @@ export const ActionFloatingTools = () => {
             />
           )}
         </View>
+      </View>
+      {/* Quick Actions (Inline Row) */}
+      <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 16 }}>
+        <View style={{
+          gap: 10,
+          paddingBottom: 10,
+          alignItems: 'flex-end',
+        }}>
+          {!isDriveMode && (
+            <>
+              {[
+                { id: 'speed_bump', label: 'دودانة', color: '#F59E0B' },
+                { id: 'pothole', label: 'حفرة', color: '#EF4444' },
+              ].map((action) => (
+                <TouchableOpacity
+                  key={action.id}
+                  style={{
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    backgroundColor: theme.colors.card,
+                    paddingVertical: 12,
+                    paddingHorizontal: 4,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 5,
+                    elevation: 5,
+                    gap: 8,
+                    width: 70, // Minimum width for consistent tap area
+                    justifyContent: 'center'
+                  }}
+                  onPress={() => handleQuickReport(action.id as any)}
+                  disabled={isLoading}
+                  activeOpacity={0.7}
+                >
+                  <View style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: action.color,
+                    borderWidth: 2,
+                    borderColor: '#FFF',
+                    shadowColor: action.color,
+                    shadowOpacity: 0.4,
+                    shadowRadius: 4,
+                    elevation: 2
+                  }} />
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: theme.colors.text,
+                    textAlign: 'center',
+                    lineHeight: 14
+                  }}>
+                    {action.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
 
+
+            </>
+          )}
+        </View>
       </View>
       {/* Bottom Area */}
       <View style={{
@@ -116,88 +182,31 @@ export const ActionFloatingTools = () => {
         paddingHorizontal: 16,
         gap: 10,
       }} pointerEvents="box-none">
-
-        {/* Quick Actions (Inline Row) */}
-        <View style={{
-          gap: 10,
-          paddingBottom: 10,
-          alignItems: 'flex-end'
-        }}>
-
-          {hazardsLoading && (
-            <View style={{
-              height: 44,
-              width: 44,
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              borderRadius: 999,
-              backgroundColor: theme.colors.card,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              justifyContent: 'center',
-              alignItems: 'center'
+        {/* Optional: top badge showing total hazards in radius */}
+        {hazardMode === 'clusters'
+          ? null
+          : <View style={{
+            alignSelf: 'center',
+            zIndex: 20,
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 999,
+            backgroundColor: theme.mode === 'dark' ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.85)',
+            borderWidth: 1,
+            borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+            marginLeft: 'auto'
+          }}>
+            <Text style={{
+              fontSize: 12,
+              color: theme.mode === 'dark' ? '#E5E7EB' : '#111827',
+              fontWeight: '600',
             }}>
-              <ActivityIndicator size="small" color={theme.colors.accent} />
-            </View>
-          )}
-
-
-          {!isDriveMode && (
-            <>
-              <TouchableOpacity
-                style={quickChipStyle}
-                onPress={() => handleQuickReport('speed_bump')}
-                disabled={isLoading}
-              >
-                <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#F59E0B', borderWidth: 1, borderColor: '#FFF' }} />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text }}>
-                  Dos-d’âne
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={quickChipStyle}
-                onPress={() => handleQuickReport('pothole')}
-                disabled={isLoading}
-              >
-                <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#EF4444', borderWidth: 1, borderColor: '#FFF' }} />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text }}>
-                  حفرة
-                </Text>
-              </TouchableOpacity>
-
-              {/* Optional: top badge showing total hazards in radius */}
-              {hazardMode === 'clusters'
-                ? null
-                :
-
-                <View style={{
-                  alignSelf: 'center',
-                  zIndex: 20,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 999,
-                  backgroundColor: theme.mode === 'dark' ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.85)',
-                  borderWidth: 1,
-                  borderColor: theme.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                }}>
-                  <Text style={{
-                    fontSize: 12,
-                    color: theme.mode === 'dark' ? '#E5E7EB' : '#111827',
-                    fontWeight: '600',
-                  }}>
-                    {`Vue détaillée • Total: ${totalInRadius} (${hazardCounts.speed_bump} 🟠, ${hazardCounts.pothole} 🔴)`}
-                  </Text>
-                </View>
-              }
-
-            </>
-          )}
-        </View>
-
+              {`Vue détaillée • Total: ${totalInRadius} (${hazardCounts.speed_bump} 🟠, ${hazardCounts.pothole} 🔴)`}
+            </Text>
+          </View>
+        }
         {/* Main CTA Row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
           <TouchableOpacity
             style={iconBtnStyle}
             onPress={recenterOnUser}
