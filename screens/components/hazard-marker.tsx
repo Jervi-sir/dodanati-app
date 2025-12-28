@@ -23,6 +23,7 @@ export const HazardMarker = ({ hazard, selected }: Props) => {
   // Pothole: Red background
   let backgroundColor = '#FFFFFF';
   let borderColor = '#FFFFFF';
+  let opacity = 1;
 
   if (isSpeedBump) {
     backgroundColor = '#F59E0B'; // Amber 500
@@ -30,6 +31,12 @@ export const HazardMarker = ({ hazard, selected }: Props) => {
   } else if (isPothole) {
     backgroundColor = '#EF4444'; // Red 500
     borderColor = '#FFFFFF';
+  }
+
+  // Offline override
+  if (hazard.isOffline) {
+    borderColor = '#9CA3AF'; // Gray 400
+    opacity = 0.7;
   }
 
   return (
@@ -41,6 +48,7 @@ export const HazardMarker = ({ hazard, selected }: Props) => {
           height: size,
           borderRadius: size / 2,
           backgroundColor,
+          opacity,
           borderColor: selected ? '#000000' : borderColor,
           borderWidth: selected ? 3 : 2,
           transform: [{ scale: selected ? 1.1 : 1 }],

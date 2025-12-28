@@ -55,10 +55,12 @@ export const OfflineIndicator = () => {
         disabled={!(queue.length > 0 && isConnected)}
       >
         <View style={styles.content}>
-          <View style={[styles.dot, !isConnected ? styles.dotOffline : styles.dotOnline]} />
-          <Text style={styles.text}>
-            {!isConnected ? 'Mode hors ligne' : `${queue.length} signalement${queue.length > 1 ? 's' : ''} en attente`}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <Text style={styles.text}>
+              {!isConnected ? 'Mode hors ligne' : `${queue.length} signalement${queue.length > 1 ? 's' : ''} en attente`}
+            </Text>
+            <View style={[styles.dot, !isConnected ? styles.dotOffline : styles.dotOnline]} />
+          </View>
           {queue.length > 0 && isConnected && (
             <Text style={styles.actionText}>Appuyez pour synchroniser</Text>
           )}
@@ -70,16 +72,14 @@ export const OfflineIndicator = () => {
 
 const styles = StyleSheet.create({
   container: {
-    // position: 'absolute',
-    // top: 0,
-    // left: 0,
-    // right: 0,
-    // zIndex: 1000,
+    zIndex: 1000,
+    alignItems: 'center', // Center the pill
   },
   banner: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 12,
+    flexDirection: 'row'
   },
   bannerOffline: {
     backgroundColor: '#FF3B30',
@@ -88,15 +88,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF9500',
   },
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'column',
+    flex: 1
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 8,
   },
   dotOffline: {
     backgroundColor: '#FFFFFF',

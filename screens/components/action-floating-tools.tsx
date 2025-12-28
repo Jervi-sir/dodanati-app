@@ -1,17 +1,13 @@
 import CarIcon from '@/assets/icons/car-icon';
 import CenterMapIcon from '@/assets/icons/center-map-icon';
-import HoleIcon from '@/assets/icons/hole-icon';
 import SettingsIcon from '@/assets/icons/settings-icon';
-import SpeedBumpIcon from '@/assets/icons/speed-bump-icon';
 import StopIcon from '@/assets/icons/stop-icon';
 import { useTheme } from '@/contexts/1-theme-context';
 import { useDevice } from '@/contexts/2-device-context';
 import { useLocation } from '@/contexts/3-location-context';
-import { useUI } from '@/contexts/4-ui-context';
 import { useHazards } from '@/contexts/5-hazard-context';
 import { useRoute } from '@/contexts/6-route-context';
 import { useDrive } from '@/contexts/7-drive-context';
-import React from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteSummarySection } from './route-summary';

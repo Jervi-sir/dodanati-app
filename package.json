@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/config": "^12.0.13",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/netinfo": "^11.4.1",
@@ -16,6 +17,7 @@
     "@turf/turf": "^7.3.1",
     "axios": "^1.13.2",
     "expo": "~54.0.25",
+    "expo-dev-client": "~6.0.20",
     "expo-device": "~8.0.9",
     "expo-haptics": "~15.0.7",
     "expo-image": "~3.0.11",

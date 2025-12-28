@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "config": {
-        "googleMapsApiKey": "${GOOGLE_MAPS_API_KEY}"
+        "googleMapsApiKey": "process.env.GOOGLE_MAPS_API_KEY"
       }
     },
     "android": {
@@ -28,7 +28,7 @@
       "package": "com.jervi.dodanati",
       "config": {
         "googleMaps": {
-          "apiKey": "${GOOGLE_MAPS_API_KEY}"
+          "apiKey": "process.env.GOOGLE_MAPS_API_KEY"
         }
       }
     },

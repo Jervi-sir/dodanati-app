@@ -95,9 +95,9 @@ const SyncQueueSheet = (props: SheetProps) => {
                   </Text>
                 )}
               </View>
-              <View style={styles.severityBadge}>
+              {/* <View style={styles.severityBadge}>
                 <Text style={styles.severityText}>{report.severity}</Text>
-              </View>
+              </View> */}
             </View>
           ))}
         </ScrollView>

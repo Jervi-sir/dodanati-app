@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import MapView, { Region } from 'react-native-maps';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -47,7 +47,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // ✅ heading is ALWAYS a number (0..360)
   const [currentHeading, setCurrentHeading] = useState<number>(0);
 
-  const [mapProvider, setMapProvider] = useState<MapProviderKind>('system');
+  const [mapProvider, setMapProvider] = useState<MapProviderKind>(Platform.OS === 'android' ? 'google' : 'system');
   const [isSimulatingLocation, setIsSimulatingLocation] = useState(false);
 
   const [region, setRegion] = useState<Region>({

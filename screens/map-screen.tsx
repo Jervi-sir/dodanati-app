@@ -13,8 +13,6 @@ import { HazardMarker } from './components/hazard-marker';
 import { SnackbarBanner } from './components/snackbar-banner';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { SheetManager } from 'react-native-actions-sheet';
-import { OfflineIndicator } from '@/components/offline-indicator';
-import NavigationArrowIcon from '@/assets/icons/navigation-arrow-icon';
 import { LocationPuck } from '@/assets/icons/location-puck';
 
 const MAP_WIDTH = Dimensions.get('window').width;
@@ -270,7 +268,7 @@ export const MapScreen = () => {
       )}
 
       {/* Debug overlay */}
-      <View style={{ position: 'absolute', top: 200, left: 20, zIndex: 99 }}>
+      {/* <View style={{ position: 'absolute', top: 200, left: 20, zIndex: 99 }}>
         <View style={{ backgroundColor: 'red', padding: 10 }}>
           <Text>Hazards: {hazards?.length}</Text>
           <Text>Server Clusters: {clusters?.length}</Text>
@@ -282,7 +280,7 @@ export const MapScreen = () => {
             </>
           )}
         </View>
-      </View>
+      </View> */}
 
       <MapView
         ref={mapRef}

@@ -1,7 +1,7 @@
 // src/components/map/HazardDetailSheet.tsx
 import React, { useMemo } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import ActionSheet, { SheetProps } from 'react-native-actions-sheet';
+import ActionSheet, { SheetManager, SheetProps } from 'react-native-actions-sheet';
 import { useHazards } from '@/contexts/5-hazard-context';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { useUI } from '@/contexts/4-ui-context';
@@ -15,7 +15,6 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
     deleteHazard,
   } = useHazards();
 
-  const { closeHazardSheet } = useUI();
 
   const handleDelete = () => {
     if (!selectedHazard) return;
@@ -29,7 +28,7 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
           text: 'Supprimer',
           style: 'destructive',
           onPress: () => {
-            closeHazardSheet();
+            SheetManager.hide('hazard-detail-sheet');
             deleteHazard(selectedHazard.id);
           },
         },
@@ -98,7 +97,7 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={styles.closeButton} onPress={closeHazardSheet}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => SheetManager.hide('hazard-detail-sheet')}>
             <Text style={styles.closeText}>Fermer</Text>
           </TouchableOpacity>
         </View>

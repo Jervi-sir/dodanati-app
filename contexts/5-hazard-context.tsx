@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Region } from 'react-native-maps';
@@ -43,6 +43,7 @@ export type RoadHazard = {
     slug: string;
     icon: string | null;
   };
+  isOffline?: boolean;
 };
 
 export type HazardCluster = {
@@ -637,7 +638,37 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return (
     <HazardContext.Provider
       value={{
-        hazards,
+        hazards: useMemo(() => {
+          // Map queued items to RoadHazard format
+          const offlineHazards: RoadHazard[] = queue.map((q) => {
+            // Use negative ID based on timestamp to avoid collision with server IDs
+            const tempId = -1 * (q.queuedAt || Date.now());
+            return {
+              id: tempId,
+              lat: q.lat,
+              lng: q.lng,
+              road_hazard_category_id: q.road_hazard_category_id,
+              severity: q.severity,
+              note: q.note || null,
+              upvotes: 0,
+              downvotes: 0,
+              reports_count: 0,
+              last_reported_at: new Date(q.queuedAt).toISOString(),
+              is_active: true,
+              is_mine: true,
+              isOffline: true,
+              category: {
+                id: q.road_hazard_category_id,
+                slug: q.categorySlug || 'unknown',
+                name_en: q.categoryLabel || 'Unknown',
+                name_fr: q.categoryLabel || 'Inconnu',
+                name_ar: q.categoryLabel || 'Unknown',
+                icon: null
+              }
+            };
+          });
+          return [...offlineHazards, ...hazards];
+        }, [queue, hazards]),
         clusters,
         mode,
         totalInRadius,
@@ -669,6 +700,6 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }}
     >
       {children}
-    </HazardContext.Provider>
+    </HazardContext.Provider >
   );
 };
