@@ -8,11 +8,13 @@ import { useLocation } from '@/contexts/3-location-context';
 import { useHazards } from '@/contexts/5-hazard-context';
 import { useRoute } from '@/contexts/6-route-context';
 import { useDrive } from '@/contexts/7-drive-context';
-import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, PanResponder, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteSummarySection } from './route-summary';
 import { SheetManager } from 'react-native-actions-sheet';
 import { OfflineIndicator } from '@/components/offline-indicator';
+import { useRef, useState } from 'react';
+import SpeedBumpIcon from '@/assets/icons/speed-bump-icon';
 
 export const ActionFloatingTools = () => {
   const { theme } = useTheme();
@@ -23,7 +25,33 @@ export const ActionFloatingTools = () => {
   const { locationLoading, recenterOnUser, isSimulatingLocation, toggleSimulationMode } = useLocation();
   const { routeSummary, routeLoading, clearRoute } = useRoute();
 
+  const pan = useRef(new Animated.Value(0)).current;
+  const [containerHeight, setContainerHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 10,
+      onPanResponderMove: Animated.event(
+        [null, { dy: pan }],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: (e, gestureState) => {
+        pan.extractOffset();
+      },
+    })
+  ).current;
+
   const isLoading = bootLoading || locationLoading;
+
+  const limitY = containerHeight > contentHeight ? (containerHeight - contentHeight) / 2 : 0;
+
+  const clampedPan = pan.interpolate({
+    inputRange: [-limitY, limitY],
+    outputRange: [-limitY, limitY],
+    extrapolate: 'clamp',
+  });
 
   // Common styles
   const iconBtnStyle = {
@@ -68,6 +96,7 @@ export const ActionFloatingTools = () => {
       <View style={{
         paddingTop: 60, paddingHorizontal: 16,
         flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+        flex: 1
       }}>
         <View style={{ alignItems: 'flex-end', gap: 12, marginBottom: 40, }} pointerEvents="box-none">
           <TouchableOpacity
@@ -97,7 +126,7 @@ export const ActionFloatingTools = () => {
           </View>
         </View>
 
-        <View style={{ flex: 1, gap: 8 }}>
+        <View style={{ height: '100%', flex: 1, gap: 8 }}>
           <OfflineIndicator />
           {!isLoading && (
             <RouteSummarySection
@@ -106,80 +135,89 @@ export const ActionFloatingTools = () => {
               onQuit={clearRoute}
             />
           )}
+          {/* Quick Actions (Inline Row) */}
+          <View
+            style={{ justifyContent: 'center', alignSelf: 'flex-end', flex: 1 }}
+            pointerEvents="box-none"
+            onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
+          >
+            <Animated.View
+              style={{
+                gap: 10,
+                paddingBottom: 10,
+                alignItems: 'flex-end',
+                transform: [{ translateY: clampedPan }],
+                alignSelf: 'flex-end'
+              }}
+              onLayout={(e) => setContentHeight(e.nativeEvent.layout.height)}
+              {...panResponder.panHandlers}
+            >
+              {!isDriveMode && (
+                <>
+                  {[
+                    { id: 'speed_bump', label: 'دودانة', color: '#F59E0B' },
+                    { id: 'pothole', label: 'حفرة', color: '#EF4444' },
+                  ].map((action) => (
+                    <TouchableOpacity
+                      key={action.id}
+                      style={{
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        backgroundColor: theme.colors.card,
+                        paddingVertical: 12,
+                        paddingHorizontal: 4,
+                        borderRadius: 16,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 5,
+                        elevation: 5,
+                        gap: 8,
+                        width: 70, // Minimum width for consistent tap area
+                        justifyContent: 'center'
+                      }}
+                      onPress={() => handleQuickReport(action.id as any)}
+                      disabled={isLoading}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: action.color,
+                        borderWidth: 2,
+                        borderColor: '#FFF',
+                        shadowColor: action.color,
+                        shadowOpacity: 0.4,
+                        shadowRadius: 4,
+                        elevation: 2
+                      }} />
+                      <Text style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: theme.colors.text,
+                        textAlign: 'center',
+                        lineHeight: 14
+                      }}>
+                        {action.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
+            </Animated.View>
+          </View>
         </View>
       </View>
-      {/* Quick Actions (Inline Row) */}
-      <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 16 }}>
-        <View style={{
-          gap: 10,
-          paddingBottom: 10,
-          alignItems: 'flex-end',
-        }}>
-          {!isDriveMode && (
-            <>
-              {[
-                { id: 'speed_bump', label: 'دودانة', color: '#F59E0B' },
-                { id: 'pothole', label: 'حفرة', color: '#EF4444' },
-              ].map((action) => (
-                <TouchableOpacity
-                  key={action.id}
-                  style={{
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    backgroundColor: theme.colors.card,
-                    paddingVertical: 12,
-                    paddingHorizontal: 4,
-                    borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 5,
-                    elevation: 5,
-                    gap: 8,
-                    width: 70, // Minimum width for consistent tap area
-                    justifyContent: 'center'
-                  }}
-                  onPress={() => handleQuickReport(action.id as any)}
-                  disabled={isLoading}
-                  activeOpacity={0.7}
-                >
-                  <View style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 12,
-                    backgroundColor: action.color,
-                    borderWidth: 2,
-                    borderColor: '#FFF',
-                    shadowColor: action.color,
-                    shadowOpacity: 0.4,
-                    shadowRadius: 4,
-                    elevation: 2
-                  }} />
-                  <Text style={{
-                    fontSize: 12,
-                    fontWeight: '700',
-                    color: theme.colors.text,
-                    textAlign: 'center',
-                    lineHeight: 14
-                  }}>
-                    {action.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
 
-
-            </>
-          )}
-        </View>
-      </View>
       {/* Bottom Area */}
       <View style={{
         width: '100%',
         alignItems: 'flex-end',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
+        paddingHorizontal: 18,
         gap: 10,
       }} pointerEvents="box-none">
         {/* Optional: top badge showing total hazards in radius */}
@@ -209,7 +247,7 @@ export const ActionFloatingTools = () => {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
           <TouchableOpacity
             style={iconBtnStyle}
-            onPress={recenterOnUser}
+            onPress={() => recenterOnUser()}
             activeOpacity={0.8}
           >
             <CenterMapIcon size={22} color={theme.colors.text} />

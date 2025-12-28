@@ -15,7 +15,7 @@ type LocationContextType = {
   currentLng: number | null;
   region: Region;
   setRegion: (r: Region) => void;
-  recenterOnUser: () => void;
+  recenterOnUser: (zoom?: number) => void;
   mapRef: React.RefObject<MapView | null>;
   mapProvider: MapProviderKind;
   setMapProvider: (p: MapProviderKind) => void;
@@ -47,7 +47,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // ✅ heading is ALWAYS a number (0..360)
   const [currentHeading, setCurrentHeading] = useState<number>(0);
 
-  const [mapProvider, setMapProvider] = useState<MapProviderKind>(Platform.OS === 'android' ? 'google' : 'system');
+  const [mapProvider, setMapProvider] = useState<MapProviderKind>('google');
   const [isSimulatingLocation, setIsSimulatingLocation] = useState(false);
 
   const [region, setRegion] = useState<Region>({
@@ -233,7 +233,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, []);
 
-  const recenterOnUser = useCallback(() => {
+  const recenterOnUser = useCallback((zoom?: number) => {
     if (currentLat == null || currentLng == null) return;
 
     const newRegion: Region = {
@@ -251,7 +251,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           latitude: currentLat,
           longitude: currentLng,
         },
-        zoom: 15,
+        zoom: zoom || 17,
       },
       { duration: 500 }
     );

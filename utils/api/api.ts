@@ -11,6 +11,8 @@ export const ApiRoutes = {
     auth: 'device/auth'
   },
 
+  feedback: 'feedback',
+
   hazardsRouteSummary: 'hazards-route-summary',
 
   hazards: {

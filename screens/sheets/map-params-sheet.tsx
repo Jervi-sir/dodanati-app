@@ -1,6 +1,6 @@
 // src/components/map/MapParamsSheet.tsx
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ActionSheet, { SheetProps } from 'react-native-actions-sheet';
 import { MapProviderKind, useLocation } from '@/contexts/3-location-context';
 import { useTheme, AppTheme, ThemeMode } from '@/contexts/1-theme-context';
@@ -60,7 +60,7 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Moteur de carte</Text>
         <View style={styles.chipRow}>
-          {(['system', 'google'] as MapProviderKind[]).map((value) => {
+          {((Platform.OS === 'ios' ? ['google', 'system'] : ['google']) as MapProviderKind[]).map((value) => {
             const active = mapProvider === value;
             return (
               <TouchableOpacity
@@ -70,7 +70,7 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
                 activeOpacity={0.8}
               >
                 <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {value === 'system' ? 'Par défaut' : 'Google Maps'}
+                  {value === 'system' ? 'Apple Maps' : 'Google Maps'}
                 </Text>
               </TouchableOpacity>
             );
@@ -123,6 +123,31 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
             <Text style={styles.listItemTitle}>Historique de mes signalements</Text>
             <Text style={styles.listItemSubtitle}>
               Voir les dangers que vous avez déjà envoyés
+            </Text>
+          </View>
+          <Text style={styles.listItemChevron}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Support */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Support</Text>
+
+        <TouchableOpacity
+          style={styles.listItem}
+          onPress={() => {
+            close();
+            // Delay to avoid sheet transition conflicts
+            setTimeout(() => {
+              SheetManager.show('feedback-sheet');
+            }, 400);
+          }}
+          activeOpacity={0.8}
+        >
+          <View style={styles.listItemTextWrapper}>
+            <Text style={styles.listItemTitle}>Envoyer un avis</Text>
+            <Text style={styles.listItemSubtitle}>
+              Signaler un bug ou suggérer une idée
             </Text>
           </View>
           <Text style={styles.listItemChevron}>›</Text>
