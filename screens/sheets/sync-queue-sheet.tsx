@@ -1,15 +1,29 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import ActionSheet, { SheetProps, SheetManager, ScrollView } from 'react-native-actions-sheet';
 import { useOfflineQueueStore } from '@/stores/offline-queue-store';
 import { useHazards } from '@/contexts/5-hazard-context';
 import { useUI } from '@/contexts/4-ui-context';
+import { useLocation } from '@/contexts/3-location-context';
+import TrashIcon from '@/assets/icons/trash-icon';
 
 const SyncQueueSheet = (props: SheetProps) => {
   const { queue, removeFromQueue, clearQueue } = useOfflineQueueStore();
   const { syncBulkQueuedReports } = useHazards();
   const { showSnackbar } = useUI();
+  const { mapRef, setRegion } = useLocation();
   const [syncing, setSyncing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
 
   const handleSyncAll = async () => {
     if (queue.length === 0) {
@@ -62,6 +76,71 @@ const SyncQueueSheet = (props: SheetProps) => {
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
+  const handleDeleteOne = (id: string) => {
+    Alert.alert(
+      'Supprimer',
+      'Voulez-vous vraiment supprimer ce signalement en attente ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => {
+            removeFromQueue(id);
+            showSnackbar('Signalement supprimé', 'OK');
+            if (queue.length <= 1) {
+              SheetManager.hide('sync-queue-sheet');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteSelected = () => {
+    Alert.alert(
+      'Supprimer la sélection',
+      `Voulez-vous vraiment supprimer ${selectedIds.size} signalement(s) ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => {
+            selectedIds.forEach((id) => removeFromQueue(id));
+            setSelectedIds(new Set());
+            showSnackbar(`${selectedIds.size} signalement(s) supprimé(s)`, 'OK');
+
+            // If we deleted everything, close the sheet
+            if (queue.length - selectedIds.size <= 0) {
+              SheetManager.hide('sync-queue-sheet');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteAll = () => {
+    Alert.alert(
+      'Tout supprimer',
+      'Voulez-vous vraiment supprimer TOUS les signalements en attente ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Tout supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            await clearQueue();
+            setSelectedIds(new Set());
+            showSnackbar('File d\'attente vidée', 'OK');
+            SheetManager.hide('sync-queue-sheet');
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <ActionSheet
       {...props}
@@ -74,32 +153,99 @@ const SyncQueueSheet = (props: SheetProps) => {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Signalements en attente</Text>
-          <Text style={styles.subtitle}>
-            {queue.length} signalement{queue.length > 1 ? 's' : ''} à synchroniser
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+            <Text style={styles.subtitle}>
+              {queue.length} signalement{queue.length > 1 ? 's' : ''} à synchroniser
+            </Text>
+            {selectedIds.size > 0 ? (
+              <TouchableOpacity
+                style={[styles.buttonSecondary, { borderColor: '#FF3B30', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 100 }]}
+                onPress={handleDeleteSelected}
+                disabled={syncing}
+              >
+                <Text style={[styles.buttonTextSecondary, { color: '#FF3B30', fontSize: 12 }]}>
+                  Sup. ({selectedIds.size})
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.buttonSecondary, { borderColor: '#FF3B30', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 100 }]}
+                onPress={handleDeleteAll}
+                disabled={syncing}
+              >
+                <Text style={[styles.buttonTextSecondary, { color: '#FF3B30', fontSize: 12 }]}>Tout supprimer</Text>
+              </TouchableOpacity>
+            )}
+
+          </View>
         </View>
 
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-          {queue.map((report) => (
-            <View key={report.id} style={styles.reportItem}>
-              <View style={styles.reportDetails}>
-                <Text style={styles.reportCategory}>
-                  {report.categoryLabel || 'Signalement'}
-                </Text>
-                <Text style={styles.reportTime}>
-                  {formatDate(report.queuedAt)}
-                </Text>
-                {report.note && (
-                  <Text style={styles.reportNote} numberOfLines={1}>
-                    {report.note}
-                  </Text>
-                )}
+          {queue.map((report) => {
+            const isSelected = selectedIds.has(report.id);
+            return (
+              <View
+                key={report.id}
+                style={[
+                  styles.reportItemContainer,
+                  isSelected && styles.reportItemContainerSelected
+                ]}
+              >
+                {/* <TouchableOpacity
+                  style={styles.checkboxContainer}
+                  onPress={() => toggleSelection(report.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                    {isSelected && <View style={styles.checkboxInner} />}
+                  </View>
+                </TouchableOpacity> */}
+
+                <TouchableOpacity
+                  style={styles.reportItem}
+                  onPress={() => {
+                    // If in selection mode, toggle selection instead of moving map? 
+                    // Or keep dual behavior? Let's keep dual behavior but maybe favor selection if user taps the item body?
+                    // User request didn't specify, but standard pattern:
+                    // usually tapping item body in "Edit" mode toggles.
+                    // But here we are always in "Edit" mode essentially.
+                    // Let's keep map navigation on body press, and use checkbox for selection.
+                    SheetManager.hide('sync-queue-sheet');
+                    const newRegion = {
+                      latitude: report.lat,
+                      longitude: report.lng,
+                      latitudeDelta: 0.005,
+                      longitudeDelta: 0.005,
+                    };
+                    setRegion(newRegion);
+                    mapRef.current?.animateToRegion(newRegion, 500);
+                  }}
+                >
+                  <View style={styles.reportDetails}>
+                    <Text style={styles.reportCategory}>
+                      {report.categoryLabel || 'Signalement'}
+                    </Text>
+                    <Text style={styles.reportTime}>
+                      {formatDate(report.queuedAt)}
+                    </Text>
+                    {report.note && (
+                      <Text style={styles.reportNote} numberOfLines={1}>
+                        {report.note}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteOne(report.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <TrashIcon size={18} color="#FF3B30" />
+                </TouchableOpacity>
               </View>
-              {/* <View style={styles.severityBadge}>
-                <Text style={styles.severityText}>{report.severity}</Text>
-              </View> */}
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
 
         <View style={styles.actions}>
@@ -155,10 +301,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   reportItem: {
-    backgroundColor: '#2C2C2E',
-    borderRadius: 12,
+    flex: 1,
     padding: 16,
-    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -227,6 +371,50 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  reportItemContainer: {
+    backgroundColor: '#2C2C2E',
+    borderRadius: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 16,
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reportItemContainerSelected: {
+    backgroundColor: '#3A3A3C',
+    borderColor: '#007AFF',
+    borderWidth: 1,
+  },
+  checkboxContainer: {
+    padding: 16,
+    paddingRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#8E8E93',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  checkboxInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
   },
 });
 

@@ -44,6 +44,7 @@ export type RoadHazard = {
     icon: string | null;
   };
   isOffline?: boolean;
+  offlineId?: string;
 };
 
 export type HazardCluster = {
@@ -166,7 +167,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { currentLat, currentLng, region } = useLocation();
   const { showSnackbar } = useUI();
   const { isConnected } = useNetworkStatus();
-  const { loadQueue, addToQueue, queue } = useOfflineQueueStore();
+  const { loadQueue, addToQueue, removeFromQueue, queue } = useOfflineQueueStore();
 
   const [categories, setCategories] = useState<RoadHazardCategoryTaxonomyItem[]>([]);
   const [hazards, setHazards] = useState<RoadHazard[]>([]);
@@ -538,6 +539,14 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteHazard = async (id: number) => {
+    // Check if it's an offline hazard
+    const hazardToDelete = hazards.find((h) => h.id === id);
+    if (hazardToDelete?.isOffline && hazardToDelete.offlineId) {
+      await removeFromQueue(hazardToDelete.offlineId);
+      showSnackbar('Signalement hors ligne supprimé.');
+      return;
+    }
+
     setHazards((prev) => prev.filter((h) => h.id !== id));
     showSnackbar('Signalement supprimé.');
 
@@ -657,6 +666,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               is_active: true,
               is_mine: true,
               isOffline: true,
+              offlineId: q.id,
               category: {
                 id: q.road_hazard_category_id,
                 slug: q.categorySlug || 'unknown',
