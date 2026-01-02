@@ -190,7 +190,7 @@ export const MapScreen = () => {
           coordinate={{ latitude: Number(h.lat), longitude: Number(h.lng) }}
           onPress={() => handleHazardPress(h)}
           zIndex={isSelected ? 999 : 10}
-          tracksViewChanges={true} // Fixed: Ensure markers are always rendered
+          tracksViewChanges={false}
         >
           <HazardMarker hazard={h} selected={isSelected} />
         </Marker>
@@ -211,8 +211,8 @@ export const MapScreen = () => {
         <Marker
           key={clusterKey}
           coordinate={{ latitude: c.lat, longitude: c.lng }}
-          zIndex={20}              // 👈 higher than user location
-          tracksViewChanges={true} // Fixed: Ensure clusters are always rendered
+          zIndex={20}
+          tracksViewChanges={false}
           anchor={{ x: 0.5, y: 0.5 }}
           onPress={() => {
             const next: Region = {
@@ -297,7 +297,8 @@ export const MapScreen = () => {
         }}
         provider={mapProvider === 'google' ? PROVIDER_GOOGLE : undefined}
         // showsMyLocationButton={true}
-        showsUserLocation={false}
+        showsUserLocation={true}
+        showsMyLocationButton={false}
         onPress={(e) => {
           if (isSimulatingLocation) {
             const { latitude, longitude } = e.nativeEvent.coordinate;
@@ -309,25 +310,7 @@ export const MapScreen = () => {
           selectDestination({ latitude, longitude });
         }}
       >
-        {/* User Location Marker (Simulated or Real) */}
-        {currentLat && currentLng && (
-          <Marker
-            key="user-puck"
-            coordinate={{ latitude: currentLat, longitude: currentLng }}
-            title={isSimulatingLocation ? "Position simulée" : "Ma position"}
-            anchor={{ x: 0.5, y: 0.5 }}
-            flat={true}
-            tracksViewChanges={true}
-            zIndex={5}
-          >
-            <LocationPuck
-              heading={currentHeading}
-              showCone
-              coneAngleDeg={70}
-              size={50}
-            />
-          </Marker>
-        )}
+        {/* Custom User Marker removed in favor of native showsUserLocation which is more performant */}
 
         {/* Render logic:
             - hazardMode === 'clusters' => server clusters
