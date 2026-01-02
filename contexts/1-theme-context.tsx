@@ -6,7 +6,7 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { Appearance, ColorSchemeName, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Appearance, ColorSchemeName, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'app_theme_mode';
@@ -73,15 +73,9 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [mode, setModeState] = useState<ThemeMode>('light');
-
+  const [userMode, setUserMode] = useState<ThemeMode | null>(null);
+  const systemScheme = useColorScheme();
   const [hydrated, setHydrated] = useState(false);
-
-  const applySystemDefault = () => {
-    const colorScheme: ColorSchemeName = Appearance.getColorScheme();
-    if (colorScheme === 'dark') return 'dark';
-    return 'light';
-  };
 
   // hydrate from AsyncStorage once
   useEffect(() => {
@@ -89,12 +83,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored === 'light' || stored === 'dark') {
-          setModeState(stored);
-        } else {
-          setModeState(applySystemDefault());
+          setUserMode(stored);
         }
+        // if stored is null, we stay null (system default)
       } catch {
-        setModeState(applySystemDefault());
+        // failed to load, stay null
       } finally {
         setHydrated(true);
       }
@@ -102,19 +95,22 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     load();
   }, []);
 
-  // persist when mode changes
-  useEffect(() => {
-    if (!hydrated) return;
-    AsyncStorage.setItem(STORAGE_KEY, mode).catch(() => { });
-  }, [mode, hydrated]);
-
   const setMode = useCallback((m: ThemeMode) => {
-    setModeState(m);
+    setUserMode(m);
+    AsyncStorage.setItem(STORAGE_KEY, m).catch(() => { });
   }, []);
 
   const toggleMode = useCallback(() => {
-    setModeState((prev) => (prev === 'light' ? 'dark' : 'light'));
+    setUserMode((prev) => {
+      const currentSystem = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
+      const currentEffective = prev ?? currentSystem;
+      const next = currentEffective === 'light' ? 'dark' : 'light';
+      AsyncStorage.setItem(STORAGE_KEY, next).catch(() => { });
+      return next;
+    });
   }, []);
+
+  const mode: ThemeMode = userMode ?? (systemScheme === 'dark' ? 'dark' : 'light');
 
   const theme = mode === 'dark' ? darkTheme : lightTheme;
 
