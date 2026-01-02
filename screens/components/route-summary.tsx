@@ -124,6 +124,7 @@ const makeStyles = (theme: AppTheme) =>
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
+      zIndex: 99,
 
       backgroundColor:
         theme.mode === 'light'

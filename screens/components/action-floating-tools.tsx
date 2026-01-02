@@ -2,12 +2,14 @@ import CarIcon from '@/assets/icons/car-icon';
 import CenterMapIcon from '@/assets/icons/center-map-icon';
 import SettingsIcon from '@/assets/icons/settings-icon';
 import StopIcon from '@/assets/icons/stop-icon';
+import { useUI } from '@/contexts/4-ui-context';
 import { useTheme } from '@/contexts/1-theme-context';
 import { useDevice } from '@/contexts/2-device-context';
 import { useLocation } from '@/contexts/3-location-context';
 import { useHazards } from '@/contexts/5-hazard-context';
 import { useRoute } from '@/contexts/6-route-context';
 import { useDrive } from '@/contexts/7-drive-context';
+
 import { ActivityIndicator, Animated, PanResponder, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteSummarySection } from './route-summary';
@@ -23,7 +25,8 @@ export const ActionFloatingTools = () => {
   const { hazardsLoading, handleQuickReport, mode: hazardMode, totalInRadius, hazardCounts } = useHazards();
   const { bootLoading } = useDevice();
   const { locationLoading, recenterOnUser, isSimulatingLocation, toggleSimulationMode, mapRef } = useLocation();
-  const { routeSummary, routeLoading, clearRoute } = useRoute();
+  const { routeSummary, routeLoading, clearRoute, destination } = useRoute();
+  const { showSnackbar } = useUI();
 
   const pan = useRef(new Animated.Value(0)).current;
   const [containerHeight, setContainerHeight] = useState(0);
@@ -86,7 +89,6 @@ export const ActionFloatingTools = () => {
     elevation: 2,
     gap: 6,
   };
-
   return (
     <View style={{
       position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -103,9 +105,16 @@ export const ActionFloatingTools = () => {
             style={[
               iconBtnStyle,
               { borderWidth: 2 },
-              isDriveMode && { backgroundColor: '#FEF2F2', borderColor: theme.colors.danger }
+              isDriveMode && { backgroundColor: '#FEF2F2', borderColor: theme.colors.danger },
+              (!isDriveMode && !destination) && { opacity: 0.5 }
             ]}
-            onPress={toggleDriveMode}
+            onPress={() => {
+              if (!isDriveMode && !destination) {
+                showSnackbar("Veuillez définir une destination pour démarrer.", "OK"); // French message
+                return;
+              }
+              toggleDriveMode();
+            }}
             activeOpacity={0.9}
           >
             {isDriveMode ? <StopIcon size={24} /> : <CarIcon size={26} color={theme.colors.text} />}
