@@ -18,14 +18,13 @@ export const RouteSummarySection = ({ routeLoading, routeSummary, onQuit }: Prop
       <View style={styles.routeSummaryCard}>
         {routeLoading && (
           <Text style={styles.routeSummarySub}>
-            Estimation en cours, quelques secondes…
+            جاري التقدير، بضع ثوان...
           </Text>
         )}
 
         {!routeLoading && (
           <Text style={styles.routeSummarySub}>
-            Maintiens appuyé sur un autre point de la carte pour estimer un
-            nouveau trajet, ou appuie sur la croix pour annuler.
+            اضغط مطولاً على نقطة أخرى في الخريطة لتقدير مسار جديد، أو اضغط على X للإلغاء.
           </Text>
         )}
       </View>
@@ -48,23 +47,23 @@ export const RouteSummarySection = ({ routeLoading, routeSummary, onQuit }: Prop
         <Text style={styles.quitButtonText}>✕</Text>
       </TouchableOpacity>
 
-      <Text style={styles.routeSummaryTitle}>Trajet vers la destination</Text>
+      <Text style={styles.routeSummaryTitle}>المسار إلى الوجهة</Text>
       <Text style={styles.routeSummaryLine}>
-        Distance approx. : {routeSummary.distance_km.toFixed(1)} km
+        المسافة التقريبية : {routeSummary.distance_km.toFixed(1)} كم
       </Text>
       <Text style={styles.routeSummaryLine}>
-        Dos-d’âne : {speedBumps}
+        دودانة : {speedBumps}
       </Text>
       <Text style={[styles.routeSummaryLine]}>
-        {potholes} : حفرة
+        حفرة : {potholes}
       </Text>
 
       {routeLoading && (
-        <Text style={styles.routeSummarySub}>Calcul en cours…</Text>
+        <Text style={styles.routeSummarySub}>جاري الحساب...</Text>
       )}
       {!routeLoading && (
         <Text style={styles.routeSummarySub}>
-          Long-press sur la carte pour changer ou appuie sur la croix pour quitter ce trajet.
+          اضغط مطولاً على الخريطة لتغيير المسار أو اضغط على X للمغادرة.
         </Text>
       )}
     </View>
@@ -99,6 +98,7 @@ const makeStyles = (theme: AppTheme) =>
       fontWeight: '600',
       marginBottom: 4,
       fontSize: 14,
+      textAlign: 'right',
     },
 
     routeSummaryLine: {
@@ -106,6 +106,7 @@ const makeStyles = (theme: AppTheme) =>
         ? '#E5E7EB'
         : '#D1D5DB',                           // slightly brighter on dark mode
       fontSize: 13,
+      textAlign: 'right',
     },
 
     routeSummarySub: {
@@ -113,12 +114,13 @@ const makeStyles = (theme: AppTheme) =>
         ? '#9CA3AF'
         : '#9CA3AFCC',                         // more transparent soft gray
       fontSize: 11,
+      textAlign: 'right',
     },
 
     quitButton: {
       position: 'absolute',
       top: 6,
-      right: 6,
+      left: 6,
       width: 24,
       height: 24,
       borderRadius: 12,

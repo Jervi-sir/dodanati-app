@@ -25,9 +25,10 @@ const SyncQueueSheet = (props: SheetProps) => {
     setSelectedIds(newSelected);
   };
 
+  /* ------------------- Handlers ------------------- */
   const handleSyncAll = async () => {
     if (queue.length === 0) {
-      showSnackbar('Aucun signalement à synchroniser', 'Info');
+      showSnackbar('لا توجد تبليغات للمزامنة', 'معلومة');
       return;
     }
 
@@ -40,11 +41,11 @@ const SyncQueueSheet = (props: SheetProps) => {
       // Clear successfully synced items
       if (result.success > 0) {
         await clearQueue();
-        showSnackbar(`${result.success} signalement(s) synchronisé(s)`, 'OK');
+        showSnackbar(`تمت مزامنة ${result.success} تبليغ(ات)`, 'حسنا');
       }
 
       if (result.failed > 0) {
-        showSnackbar(`${result.failed} échec(s)`, 'Erreur');
+        showSnackbar(`${result.failed} فشل`, 'خطأ');
       }
 
       // Close sheet if all items synced successfully
@@ -53,7 +54,7 @@ const SyncQueueSheet = (props: SheetProps) => {
       }
     } catch (error) {
       console.error('Bulk sync failed:', error);
-      showSnackbar('Erreur de synchronisation', 'Erreur');
+      showSnackbar('خطأ في المزامنة', 'خطأ');
     } finally {
       setSyncing(false);
     }
@@ -70,24 +71,24 @@ const SyncQueueSheet = (props: SheetProps) => {
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
 
-    if (minutes < 1) return 'À l\'instant';
-    if (minutes < 60) return `Il y a ${minutes}m`;
-    if (hours < 24) return `Il y a ${hours}h`;
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    if (minutes < 1) return 'الآن';
+    if (minutes < 60) return `منذ ${minutes} د`;
+    if (hours < 24) return `منذ ${hours} س`;
+    return date.toLocaleDateString('ar-DZ', { day: 'numeric', month: 'short' });
   };
 
   const handleDeleteOne = (id: string) => {
     Alert.alert(
-      'Supprimer',
-      'Voulez-vous vraiment supprimer ce signalement en attente ?',
+      'حذف',
+      'هل تريد حقًا حذف هذا التبليغ المعلق؟',
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: 'إلغاء', style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: 'حذف',
           style: 'destructive',
           onPress: () => {
             removeFromQueue(id);
-            showSnackbar('Signalement supprimé', 'OK');
+            showSnackbar('تم حذف التبليغ', 'حسنا');
             if (queue.length <= 1) {
               SheetManager.hide('sync-queue-sheet');
             }
@@ -99,17 +100,17 @@ const SyncQueueSheet = (props: SheetProps) => {
 
   const handleDeleteSelected = () => {
     Alert.alert(
-      'Supprimer la sélection',
-      `Voulez-vous vraiment supprimer ${selectedIds.size} signalement(s) ?`,
+      'حذف المحدد',
+      `هل تريد حقًا حذف ${selectedIds.size} تبليغ(ات)؟`,
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: 'إلغاء', style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: 'حذف',
           style: 'destructive',
           onPress: () => {
             selectedIds.forEach((id) => removeFromQueue(id));
             setSelectedIds(new Set());
-            showSnackbar(`${selectedIds.size} signalement(s) supprimé(s)`, 'OK');
+            showSnackbar(`تم حذف ${selectedIds.size} تبليغ(ات)`, 'حسنا');
 
             // If we deleted everything, close the sheet
             if (queue.length - selectedIds.size <= 0) {
@@ -123,17 +124,17 @@ const SyncQueueSheet = (props: SheetProps) => {
 
   const handleDeleteAll = () => {
     Alert.alert(
-      'Tout supprimer',
-      'Voulez-vous vraiment supprimer TOUS les signalements en attente ?',
+      'حذف الكل',
+      'هل تريد حقًا حذف جميع التبليغات المعلقة؟',
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: 'إلغاء', style: 'cancel' },
         {
-          text: 'Tout supprimer',
+          text: 'حذف الكل',
           style: 'destructive',
           onPress: async () => {
             await clearQueue();
             setSelectedIds(new Set());
-            showSnackbar('File d\'attente vidée', 'OK');
+            showSnackbar('تم إفراغ قائمة الانتظار', 'حسنا');
             SheetManager.hide('sync-queue-sheet');
           }
         }
@@ -152,10 +153,10 @@ const SyncQueueSheet = (props: SheetProps) => {
     >
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Signalements en attente</Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+          <Text style={styles.title}>تبليغات في الانتظار</Text>
+          <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
             <Text style={styles.subtitle}>
-              {queue.length} signalement{queue.length > 1 ? 's' : ''} à synchroniser
+              {queue.length} تبليغ(ات) للمزامنة
             </Text>
             {selectedIds.size > 0 ? (
               <TouchableOpacity
@@ -164,7 +165,7 @@ const SyncQueueSheet = (props: SheetProps) => {
                 disabled={syncing}
               >
                 <Text style={[styles.buttonTextSecondary, { color: '#FF3B30', fontSize: 12 }]}>
-                  Sup. ({selectedIds.size})
+                  حذف ({selectedIds.size})
                 </Text>
               </TouchableOpacity>
             ) : (
@@ -173,7 +174,7 @@ const SyncQueueSheet = (props: SheetProps) => {
                 onPress={handleDeleteAll}
                 disabled={syncing}
               >
-                <Text style={[styles.buttonTextSecondary, { color: '#FF3B30', fontSize: 12 }]}>Tout supprimer</Text>
+                <Text style={[styles.buttonTextSecondary, { color: '#FF3B30', fontSize: 12 }]}>حذف الكل</Text>
               </TouchableOpacity>
             )}
 
@@ -191,25 +192,17 @@ const SyncQueueSheet = (props: SheetProps) => {
                   isSelected && styles.reportItemContainerSelected
                 ]}
               >
-                {/* <TouchableOpacity
-                  style={styles.checkboxContainer}
-                  onPress={() => toggleSelection(report.id)}
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteOne(report.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                    {isSelected && <View style={styles.checkboxInner} />}
-                  </View>
-                </TouchableOpacity> */}
+                  <TrashIcon size={18} color="#FF3B30" />
+                </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.reportItem}
                   onPress={() => {
-                    // If in selection mode, toggle selection instead of moving map? 
-                    // Or keep dual behavior? Let's keep dual behavior but maybe favor selection if user taps the item body?
-                    // User request didn't specify, but standard pattern:
-                    // usually tapping item body in "Edit" mode toggles.
-                    // But here we are always in "Edit" mode essentially.
-                    // Let's keep map navigation on body press, and use checkbox for selection.
                     SheetManager.hide('sync-queue-sheet');
                     const newRegion = {
                       latitude: report.lat,
@@ -223,7 +216,7 @@ const SyncQueueSheet = (props: SheetProps) => {
                 >
                   <View style={styles.reportDetails}>
                     <Text style={styles.reportCategory}>
-                      {report.categoryLabel || 'Signalement'}
+                      {report.categoryLabel || 'تبليغ'}
                     </Text>
                     <Text style={styles.reportTime}>
                       {formatDate(report.queuedAt)}
@@ -234,14 +227,6 @@ const SyncQueueSheet = (props: SheetProps) => {
                       </Text>
                     )}
                   </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleDeleteOne(report.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <TrashIcon size={18} color="#FF3B30" />
                 </TouchableOpacity>
               </View>
             );
@@ -254,7 +239,7 @@ const SyncQueueSheet = (props: SheetProps) => {
             onPress={handleDismiss}
             disabled={syncing}
           >
-            <Text style={styles.buttonTextSecondary}>Plus tard</Text>
+            <Text style={styles.buttonTextSecondary}>لاحقاً</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -265,7 +250,7 @@ const SyncQueueSheet = (props: SheetProps) => {
             {syncing ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonTextPrimary}>Synchroniser</Text>
+              <Text style={styles.buttonTextPrimary}>مزامنة</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -291,10 +276,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 4,
+    textAlign: 'right',
   },
   subtitle: {
     fontSize: 14,
     color: '#8E8E93',
+    textAlign: 'right',
   },
   list: {
     maxHeight: 300,
@@ -303,7 +290,7 @@ const styles = StyleSheet.create({
   reportItem: {
     flex: 1,
     padding: 16,
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
@@ -315,16 +302,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 4,
+    textAlign: 'right',
   },
   reportTime: {
     fontSize: 12,
     color: '#8E8E93',
     marginBottom: 4,
+    textAlign: 'right',
   },
   reportNote: {
     fontSize: 14,
     color: '#AEAEB2',
     fontStyle: 'italic',
+    textAlign: 'right',
   },
   severityBadge: {
     backgroundColor: '#FF9500',
@@ -341,7 +331,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   actions: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     gap: 12,
   },
   button: {
@@ -376,13 +366,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#2C2C2E',
     borderRadius: 12,
     marginBottom: 12,
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     paddingRight: 16,
   },
   deleteButton: {
     padding: 8,
-    marginLeft: 8,
+    marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },

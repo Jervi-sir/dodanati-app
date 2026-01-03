@@ -55,14 +55,14 @@ export const OfflineIndicator = () => {
         disabled={!(queue.length > 0 && isConnected)}
       >
         <View style={styles.content}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <Text style={styles.text}>
-              {!isConnected ? 'Mode hors ligne' : `${queue.length} signalement${queue.length > 1 ? 's' : ''} en attente`}
+              {!isConnected ? 'وضع عدم الاتصال' : `${queue.length} تبليغ(ات) في الانتظار`}
             </Text>
             <View style={[styles.dot, !isConnected ? styles.dotOffline : styles.dotOnline]} />
           </View>
           {queue.length > 0 && isConnected && (
-            <Text style={styles.actionText}>Appuyez pour synchroniser</Text>
+            <Text style={styles.actionText}>اضغط للمزامنة</Text>
           )}
         </View>
       </TouchableOpacity>
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 12,
-    flexDirection: 'row'
+    flexDirection: 'row-reverse'
   },
   bannerOffline: {
     backgroundColor: '#FF3B30',
@@ -106,12 +106,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginRight: 8,
+    marginLeft: 8,
+    textAlign: 'right',
   },
   actionText: {
     fontSize: 12,
     color: '#FFFFFF',
     opacity: 0.8,
     fontStyle: 'italic',
+    textAlign: 'right',
   },
 });

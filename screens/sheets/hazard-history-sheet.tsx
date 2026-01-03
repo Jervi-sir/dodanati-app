@@ -144,7 +144,7 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
               </Text>
             )}
             <Text style={styles.rowMeta} numberOfLines={1}>
-              Sévérité {item.severity} • {createdAt}
+              الخطورة {item.severity} • {createdAt}
             </Text>
           </View>
         </View>
@@ -165,22 +165,22 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
       safeAreaInsets={{ top: Dimensions.get('window').height * 0.55, left: 0, right: 0, bottom: 0 }}
     >
       <View style={styles.sheetHeader}>
-        <Text style={styles.sheetTitle}>Mes signalements</Text>
+        <Text style={styles.sheetTitle}>تبليغاتي</Text>
         <Text style={styles.sheetSubtitle}>
-          Historique des dangers envoyés avec cet appareil
+          سجل المخاطر المرسلة من هذا الجهاز
         </Text>
       </View>
 
       {loading && !items.length ? (
         <View style={styles.loaderWrapper}>
           <ActivityIndicator />
-          <Text style={styles.loaderText}>Chargement…</Text>
+          <Text style={styles.loaderText}>جاري التحميل...</Text>
         </View>
       ) : items.length === 0 ? (
         <View style={styles.emptyWrapper}>
-          <Text style={styles.emptyTitle}>Aucun signalement pour l’instant</Text>
+          <Text style={styles.emptyTitle}>لا توجد تبليغات حالياً</Text>
           <Text style={styles.emptySubtitle}>
-            Utilisez “Signaler un danger” pour ajouter votre premier point.
+            استخدم "إبلاغ عن خطر" لإضافة أول نقطة لك.
           </Text>
 
           {/* optional close button */}
@@ -189,7 +189,7 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
             onPress={() => SheetManager.hide(props.sheetId)}
             activeOpacity={0.8}
           >
-            <Text style={{ color: theme.colors.textMuted }}>Fermer</Text>
+            <Text style={{ color: theme.colors.textMuted }}>إغلاق</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -243,11 +243,13 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 17,
       fontWeight: '600',
       color: theme.colors.text,
+      textAlign: 'right',
     },
     sheetSubtitle: {
       marginTop: 4,
       fontSize: 12,
       color: theme.colors.textMuted,
+      textAlign: 'right',
     },
 
     loaderWrapper: {
@@ -264,16 +266,19 @@ const makeStyles = (theme: AppTheme) =>
     emptyWrapper: {
       paddingHorizontal: 16,
       paddingVertical: 20,
+      alignItems: 'flex-end',
     },
     emptyTitle: {
       fontSize: 14,
       fontWeight: '500',
       color: theme.colors.text,
       marginBottom: 4,
+      textAlign: 'right',
     },
     emptySubtitle: {
       fontSize: 12,
       color: theme.colors.textMuted,
+      textAlign: 'right',
     },
 
     listContent: {
@@ -282,7 +287,7 @@ const makeStyles = (theme: AppTheme) =>
       gap: 8,
     },
     row: {
-      flexDirection: 'row',
+      flexDirection: 'row-reverse',
       alignItems: 'center',
       borderRadius: 12,
       paddingHorizontal: 12,
@@ -290,7 +295,7 @@ const makeStyles = (theme: AppTheme) =>
       backgroundColor: theme.colors.card,
     },
     rowLeft: {
-      flexDirection: 'row',
+      flexDirection: 'row-reverse',
       alignItems: 'center',
       gap: 10,
       flex: 1,
@@ -305,16 +310,19 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 14,
       fontWeight: '500',
       color: theme.colors.text,
+      textAlign: 'right',
     },
     rowNote: {
       fontSize: 12,
       color: theme.colors.text,
       marginTop: 2,
+      textAlign: 'right',
     },
     rowMeta: {
       fontSize: 11,
       color: theme.colors.textMuted,
       marginTop: 2,
+      textAlign: 'right',
     },
     footerLoader: {
       paddingVertical: 10,

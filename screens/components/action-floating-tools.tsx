@@ -16,7 +16,7 @@ import { RouteSummarySection } from './route-summary';
 import { SheetManager } from 'react-native-actions-sheet';
 import { OfflineIndicator } from '@/components/offline-indicator';
 import { useRef, useState } from 'react';
-import SpeedBumpIcon from '@/assets/icons/speed-bump-icon';
+import InfoIcon from '@/assets/icons/info-icon';
 
 export const ActionFloatingTools = () => {
   const { theme } = useTheme();
@@ -110,7 +110,7 @@ export const ActionFloatingTools = () => {
             ]}
             onPress={() => {
               if (!isDriveMode && !destination) {
-                showSnackbar("Veuillez définir une destination pour démarrer.", "OK"); // French message
+                showSnackbar("يرجى تحديد وجهة للبدء.", "حسنا");
                 return;
               }
               toggleDriveMode();
@@ -139,6 +139,14 @@ export const ActionFloatingTools = () => {
             activeOpacity={0.8}
           >
             <SettingsIcon size={22} color={theme.colors.text} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={iconBtnStyle}
+            onPress={() => SheetManager.show('about-us-sheet')}
+            activeOpacity={0.8}
+          >
+            <InfoIcon color={theme.colors.text} />
           </TouchableOpacity>
 
           <View style={[iconBtnStyle, { opacity: hazardsLoading ? 1 : 0 }]}>
@@ -259,7 +267,7 @@ export const ActionFloatingTools = () => {
               color: theme.mode === 'dark' ? '#E5E7EB' : '#111827',
               fontWeight: '600',
             }}>
-              {`Vue détaillée • Total: ${totalInRadius} (${hazardCounts.speed_bump} 🟠, ${hazardCounts.pothole} 🔴)`}
+              {`عرض تفصيلي • الإجمالي: ${totalInRadius} (${hazardCounts.speed_bump} 🟠, ${hazardCounts.pothole} 🔴)`}
             </Text>
           </View>
         }
@@ -322,7 +330,7 @@ export const ActionFloatingTools = () => {
               color: theme.colors.background,
               fontWeight: 'bold',
               fontSize: 15,
-            }}>＋ Signaler</Text>
+            }}>إبلاغ ＋</Text>
           </TouchableOpacity>
 
         </View>

@@ -38,13 +38,7 @@ export const DriveProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const lastGlobalSpeechTime = useRef<number>(0);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
 
-  // Keep screen on
   useKeepAwake(); // This hook technically enables it globally if component mounted, but we might want conditional.
-  // Actually expo-keep-awake hook keeps it awake as long as this component renders.
-  // Since this is a global provider, we might want to manually control it or just let it be.
-  // Better: use activateKeepAwake / deactivateKeepAwake imperatively if we only want it in drive mode.
-  // But for a nav app, keeping awake while the app is open is usually standard. 
-  // We'll proceed with imperative control to be safe.
 
   const startDrive = async () => {
     setIsDriveMode(true);

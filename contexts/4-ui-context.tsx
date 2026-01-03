@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useRef, useState } from 'react';
-import { ActionSheetRef } from 'react-native-actions-sheet';
 
 export type SnackbarState = {
   visible: boolean;

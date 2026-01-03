@@ -47,29 +47,30 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
     >
       <View style={styles.container}>
         <Text style={styles.title}>
-          {selectedHazard?.category?.name_fr ||
+          {selectedHazard?.category?.name_ar ||
+            selectedHazard?.category?.name_fr ||
             selectedHazard?.category?.name_en ||
-            'Danger routier'}
+            'خطر على الطريق'}
         </Text>
 
         {selectedHazard && (
           <>
             <Text style={styles.subtitle}>
-              Coordonnées: {selectedHazard.lat.toFixed(5)}, {selectedHazard.lng.toFixed(5)}
+              الإحداثيات: {selectedHazard.lat.toFixed(5)}, {selectedHazard.lng.toFixed(5)}
             </Text>
 
             <View style={styles.section}>
-              <Text style={styles.label}>Sévérité</Text>
+              <Text style={styles.label}>الخطورة</Text>
               <Text style={styles.value}>{selectedHazard.severity} / 5</Text>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.label}>Signalements</Text>
+              <Text style={styles.label}>عدد التبليغات</Text>
               <Text style={styles.value}>{selectedHazard.reports_count}</Text>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.label}>Dernier signalement</Text>
+              <Text style={styles.label}>آخر تبليغ</Text>
               <Text style={styles.value}>
                 {selectedHazard.last_reported_at || '—'}
               </Text>
@@ -77,7 +78,7 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
 
             {selectedHazard.note ? (
               <View style={styles.section}>
-                <Text style={styles.label}>Note</Text>
+                <Text style={styles.label}>ملاحظة</Text>
                 <Text style={styles.noteText}>{selectedHazard.note}</Text>
               </View>
             ) : null}
@@ -93,12 +94,12 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
               ]}
               onPress={handleDelete}
             >
-              <Text style={[styles.closeText, { color: '#fff' }]}>Supprimer</Text>
+              <Text style={[styles.closeText, { color: '#fff' }]}>حذف</Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity style={styles.closeButton} onPress={() => SheetManager.hide('hazard-detail-sheet')}>
-            <Text style={styles.closeText}>Fermer</Text>
+            <Text style={styles.closeText}>إغلاق</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -132,37 +133,43 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 17,
       fontWeight: '600',
       color: theme.colors.text,
+      textAlign: 'right',
     },
 
     subtitle: {
       marginTop: 4,
       fontSize: 12,
       color: theme.colors.textMuted,
+      textAlign: 'right',
     },
 
     section: {
       marginTop: 12,
+      alignItems: 'flex-end',
     },
 
     label: {
       fontSize: 12,
       color: theme.colors.textMuted,
       marginBottom: 2,
+      textAlign: 'right',
     },
 
     value: {
       fontSize: 14,
       color: theme.colors.text,
       fontWeight: '500',
+      textAlign: 'right',
     },
 
     noteText: {
       fontSize: 14,
       color: theme.colors.text,
+      textAlign: 'right',
     },
 
     footer: {
-      flexDirection: 'row',
+      flexDirection: 'row-reverse',
       gap: 16,
       marginTop: 16,
       paddingBottom: 24,

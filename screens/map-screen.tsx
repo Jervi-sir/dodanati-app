@@ -1,7 +1,7 @@
 // src/screens/MapScreen.tsx
 import React, { useCallback, useMemo } from 'react';
 import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { StatusBar } from 'expo-status-bar';
 import { HazardCluster, RoadHazard, useHazards } from '@/contexts/5-hazard-context';
 import { useDevice } from '@/contexts/2-device-context';
@@ -14,6 +14,8 @@ import { SnackbarBanner } from './components/snackbar-banner';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { SheetManager } from 'react-native-actions-sheet';
 import { LocationPuck } from '@/assets/icons/location-puck';
+
+// ALGERIA_GEOJSON import removed
 
 const MAP_WIDTH = Dimensions.get('window').width;
 
@@ -258,6 +260,7 @@ export const MapScreen = () => {
     ));
   }, [clusters]);
 
+
   return (
     <View style={styles.container}>
       <StatusBar animated style={mode === 'dark' ? 'light' : 'dark'} />
@@ -269,7 +272,6 @@ export const MapScreen = () => {
         </View>
       )}
 
-      {/* Debug overlay */}
       {/* <View style={{ position: 'absolute', top: 200, left: 20, zIndex: 99 }}>
         <View style={{ backgroundColor: 'red', padding: 10 }}>
           <Text>Hazards: {hazards?.length}</Text>
@@ -309,6 +311,7 @@ export const MapScreen = () => {
           const { latitude, longitude } = e.nativeEvent.coordinate;
           selectDestination({ latitude, longitude });
         }}
+
       >
         {/* Custom User Marker removed in favor of native showsUserLocation which is more performant */}
 
@@ -340,6 +343,8 @@ export const MapScreen = () => {
             strokeWidth={5}
           />
         )}
+
+
       </MapView>
 
       {/* Floating tools */}

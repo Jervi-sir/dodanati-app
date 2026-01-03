@@ -29,13 +29,13 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
       safeAreaInsets={{ top: 200, left: 0, right: 0, bottom: 0 }}
     >
       <View style={styles.sheetHeader}>
-        <Text style={styles.sheetTitle}>Paramètres</Text>
-        <Text style={styles.sheetSubtitle}>Personnaliser votre carte</Text>
+        <Text style={styles.sheetTitle}>الإعدادات</Text>
+        <Text style={styles.sheetSubtitle}>تخصيص الخريطة الخاصة بك</Text>
       </View>
 
       {/* Theme section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Apparence</Text>
+        <Text style={styles.sectionTitle}>المظهر</Text>
         <View style={styles.chipRow}>
           {(['light', 'dark'] as ThemeMode[]).map((value) => {
             const active = mode === value;
@@ -47,7 +47,7 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
                 activeOpacity={0.8}
               >
                 <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {value === 'light' ? 'Thème clair' : 'Thème sombre'}
+                  {value === 'light' ? 'فاتح' : 'داكن'}
                 </Text>
               </TouchableOpacity>
             );
@@ -57,7 +57,7 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
 
       {/* Provider section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Moteur de carte</Text>
+        <Text style={styles.sectionTitle}>محرك الخريطة</Text>
         <View style={styles.chipRow}>
           {((Platform.OS === 'ios' ? ['google', 'system'] : ['google']) as MapProviderKind[]).map((value) => {
             const active = mapProvider === value;
@@ -79,16 +79,16 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
 
       {/* Display Options */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Affichage</Text>
+        <Text style={styles.sectionTitle}>العرض</Text>
         <TouchableOpacity
           style={styles.listItem}
           onPress={() => setShowMapLabels(!showMapLabels)}
           activeOpacity={0.8}
         >
           <View style={styles.listItemTextWrapper}>
-            <Text style={styles.listItemTitle}>Noms de lieux</Text>
+            <Text style={styles.listItemTitle}>أسماء الأماكن</Text>
             <Text style={styles.listItemSubtitle}>
-              {showMapLabels ? 'Masquer' : 'Afficher'} les labels sur la carte
+              {showMapLabels ? 'إخفاء' : 'إظهار'} التسميات على الخريطة
             </Text>
           </View>
           <View style={[
@@ -105,7 +105,7 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
 
       {/* History */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Données</Text>
+        <Text style={styles.sectionTitle}>البيانات</Text>
 
         <TouchableOpacity
           style={styles.listItem}
@@ -121,18 +121,18 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
           activeOpacity={0.8}
         >
           <View style={styles.listItemTextWrapper}>
-            <Text style={styles.listItemTitle}>Historique de mes signalements</Text>
+            <Text style={styles.listItemTitle}>سجل تبليغاتي</Text>
             <Text style={styles.listItemSubtitle}>
-              Voir les dangers que vous avez déjà envoyés
+              عرض المخاطر التي قمت بإرسالها
             </Text>
           </View>
-          <Text style={styles.listItemChevron}>›</Text>
+          <Text style={styles.listItemChevron}>‹</Text>
         </TouchableOpacity>
       </View>
 
       {/* Support */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Support</Text>
+        <Text style={styles.sectionTitle}>الدعم</Text>
 
         <TouchableOpacity
           style={styles.listItem}
@@ -146,19 +146,19 @@ export const MapParamsSheet: React.FC<SheetProps> = (props) => {
           activeOpacity={0.8}
         >
           <View style={styles.listItemTextWrapper}>
-            <Text style={styles.listItemTitle}>Envoyer un avis</Text>
+            <Text style={styles.listItemTitle}>إرسال رأي</Text>
             <Text style={styles.listItemSubtitle}>
-              Signaler un bug ou suggérer une idée
+              الإبلاغ عن خطأ أو اقتراح فكرة
             </Text>
           </View>
-          <Text style={styles.listItemChevron}>›</Text>
+          <Text style={styles.listItemChevron}>‹</Text>
         </TouchableOpacity>
       </View>
 
       {/* Close */}
       <View style={styles.footer}>
         <TouchableOpacity style={styles.closeButton} onPress={close} activeOpacity={0.8}>
-          <Text style={styles.closeButtonText}>Fermer</Text>
+          <Text style={styles.closeButtonText}>إغلاق</Text>
         </TouchableOpacity>
       </View>
     </ActionSheet >
@@ -191,11 +191,13 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 17,
       fontWeight: '600',
       color: theme.colors.text,
+      textAlign: 'right',
     },
     sheetSubtitle: {
       marginTop: 4,
       fontSize: 12,
       color: theme.colors.textMuted,
+      textAlign: 'right',
     },
 
     section: {
@@ -207,10 +209,11 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 13,
       marginBottom: 6,
       color: theme.colors.text,
+      textAlign: 'right',
     },
 
     chipRow: {
-      flexDirection: 'row',
+      flexDirection: 'row-reverse',
       flexWrap: 'wrap',
       gap: 8,
     },
@@ -233,7 +236,7 @@ const makeStyles = (theme: AppTheme) =>
     },
 
     listItem: {
-      flexDirection: 'row',
+      flexDirection: 'row-reverse',
       alignItems: 'center',
       borderRadius: 12,
       paddingHorizontal: 12,
@@ -247,16 +250,18 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 14,
       fontWeight: '500',
       color: theme.colors.text,
+      textAlign: 'right',
     },
     listItemSubtitle: {
       fontSize: 12,
       color: theme.colors.textMuted,
       marginTop: 2,
+      textAlign: 'right',
     },
     listItemChevron: {
       fontSize: 20,
       color: theme.colors.textMuted,
-      marginLeft: 8,
+      marginRight: 8,
     },
 
     footer: {

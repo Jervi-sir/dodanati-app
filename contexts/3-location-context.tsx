@@ -29,6 +29,7 @@ type LocationContextType = {
 
   showMapLabels: boolean;
   setShowMapLabels: (show: boolean) => void;
+
 };
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
@@ -83,6 +84,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const [showMapLabels, setShowMapLabels] = useState(true);
+
 
   useEffect(() => {
     (async () => {
@@ -276,6 +278,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setCurrentHeading,
         showMapLabels,
         setShowMapLabels: updateShowMapLabels,
+
       }}
     >
       {children}

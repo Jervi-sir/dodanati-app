@@ -52,9 +52,9 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
       safeAreaInsets={{ top: 200, left: 0, right: 0, bottom: 0 }}
     >
       <View style={styles.sheetHeader}>
-        <Text style={styles.sheetTitle}>Signaler un danger</Text>
+        <Text style={styles.sheetTitle}>إبلاغ عن خطر</Text>
         <Text style={styles.sheetSubtitle}>
-          Position&nbsp;
+          الموقع&nbsp;
           <Text style={styles.sheetSubtitleMono}>
             {region.latitude.toFixed(5)}, {region.longitude.toFixed(5)}
           </Text>
@@ -63,12 +63,12 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
 
       {/* Categories */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Catégorie</Text>
+        <Text style={styles.sectionTitle}>الفئة</Text>
 
         {categoriesLoading && (
           <View style={styles.inlineLoader}>
             <ActivityIndicator size="small" />
-            <Text style={styles.inlineLoaderText}>Chargement…</Text>
+            <Text style={styles.inlineLoaderText}>جاري التحميل...</Text>
           </View>
         )}
 
@@ -95,7 +95,7 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
 
       {/* Severity */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Sévérité</Text>
+        <Text style={styles.sectionTitle}>الخطورة</Text>
         <View style={styles.chipRow}>
           {[1, 2, 3, 4, 5].map((lvl) => {
             const active = severity === lvl;
@@ -117,11 +117,11 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
 
       {/* Note */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Note (optionnel)</Text>
+        <Text style={styles.sectionTitle}>ملاحظة (اختياري)</Text>
         <TextInput
           value={note}
           onChangeText={setNote}
-          placeholder="Ex : très haut, invisible la nuit…"
+          placeholder="مثال: مرتفع جداً، غير مرئي ليلاً..."
           multiline
           style={styles.textArea}
           placeholderTextColor="#9CA3AF"
@@ -137,7 +137,7 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
           activeOpacity={0.8}
         >
           <Text style={styles.submitButtonText}>
-            {submitting ? 'Envoi…' : 'Enregistrer le danger'}
+            {submitting ? 'جاري الإرسال...' : 'حفظ الخطر'}
           </Text>
         </TouchableOpacity>
 
@@ -149,7 +149,7 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
           disabled={submitting}
           activeOpacity={0.8}
         >
-          <Text style={styles.cancelButtonText}>Annuler</Text>
+          <Text style={styles.cancelButtonText}>إلغاء</Text>
         </TouchableOpacity>
       </View>
     </ActionSheet>
@@ -181,11 +181,13 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 17,
       fontWeight: '600',
       color: theme.colors.text,
+      textAlign: 'right',
     },
     sheetSubtitle: {
       marginTop: 4,
       fontSize: 12,
       color: theme.colors.textMuted,
+      textAlign: 'right',
     },
     sheetSubtitleMono: {
       fontFamily: Platform.select({
@@ -205,10 +207,11 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 13,
       marginBottom: 6,
       color: theme.colors.text,
+      textAlign: 'right',
     },
 
     inlineLoader: {
-      flexDirection: 'row',
+      flexDirection: 'row-reverse',
       alignItems: 'center',
       marginBottom: 6,
       gap: 6,
@@ -219,7 +222,7 @@ const makeStyles = (theme: AppTheme) =>
     },
 
     chipRow: {
-      flexDirection: 'row',
+      flexDirection: 'row-reverse',
       flexWrap: 'wrap',
       gap: 8,
     },
@@ -258,6 +261,7 @@ const makeStyles = (theme: AppTheme) =>
       textAlignVertical: 'top',
       fontSize: 14,
       color: theme.colors.text,
+      textAlign: 'right',
     },
 
     sheetButtons: {

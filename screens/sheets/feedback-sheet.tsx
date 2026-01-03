@@ -31,10 +31,10 @@ export const FeedbackSheet: React.FC<SheetProps> = (props) => {
           version: Platform.Version,
         }
       });
-      Alert.alert("Merci !", "Votre message a bien été envoyé.");
+      Alert.alert("شكراً !", "تم إرسال رسالتك بنجاح.");
       SheetManager.hide(props.sheetId);
     } catch (e) {
-      Alert.alert("Oups", "Erreur lors de l'envoi. Vérifiez votre connexion.");
+      Alert.alert("عفواً", "حدث خطأ أثناء الإرسال. يرجى التحقق من اتصالك.");
     } finally {
       setSending(false);
     }
@@ -50,19 +50,19 @@ export const FeedbackSheet: React.FC<SheetProps> = (props) => {
       keyboardHandlerEnabled={true}
     >
       <View style={styles.sheetHeader}>
-        <Text style={styles.sheetTitle}>Envoyer un avis</Text>
+        <Text style={styles.sheetTitle}>إرسال رأي</Text>
         <Text style={styles.sheetSubtitle}>
-          Dites-nous ce qui ne va pas ou ce que vous aimez
+          أخبرنا بما لا يعجبك أو بما يعجبك
         </Text>
       </View>
 
       <View style={styles.formContainer}>
         {/* Email Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email (optionnel)</Text>
+          <Text style={styles.label}>البريد الإلكتروني (اختياري)</Text>
           <TextInput
             style={styles.input}
-            placeholder="ex: contact@exemple.com"
+            placeholder="مثال: contact@example.com"
             placeholderTextColor={theme.colors.textMuted}
             value={email}
             onChangeText={setEmail}
@@ -73,10 +73,10 @@ export const FeedbackSheet: React.FC<SheetProps> = (props) => {
 
         {/* Message Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Votre message</Text>
+          <Text style={styles.label}>رسالتك</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="Décrivez votre problème ou suggestion..."
+            placeholder="صف مشكلتك أو اقتراحك..."
             placeholderTextColor={theme.colors.textMuted}
             value={message}
             onChangeText={setMessage}
@@ -95,7 +95,7 @@ export const FeedbackSheet: React.FC<SheetProps> = (props) => {
           {sending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>Envoyer</Text>
+            <Text style={styles.submitButtonText}>إرسال</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -127,11 +127,13 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 18,
       fontWeight: '700',
       color: theme.colors.text,
+      textAlign: 'right',
     },
     sheetSubtitle: {
       marginTop: 4,
       fontSize: 13,
       color: theme.colors.textMuted,
+      textAlign: 'right',
     },
 
     formContainer: {
@@ -145,6 +147,7 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 14,
       fontWeight: '600',
       color: theme.colors.text,
+      textAlign: 'right',
     },
     input: {
       backgroundColor: theme.colors.card,
@@ -155,6 +158,7 @@ const makeStyles = (theme: AppTheme) =>
       color: theme.colors.text,
       borderWidth: 1,
       borderColor: theme.colors.border,
+      textAlign: 'right',
     },
     textArea: {
       minHeight: 120,
