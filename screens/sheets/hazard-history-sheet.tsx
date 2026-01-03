@@ -16,6 +16,7 @@ import { ApiRoutes, buildRoute } from '@/utils/api/api';
 import { RoadHazard } from '@/contexts/5-hazard-context';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { SheetManager } from 'react-native-actions-sheet';
+import { useTrans } from '@/hooks/use-trans';
 
 export type HazardHistoryItem = {
   id: number;
@@ -40,9 +41,21 @@ type Payload = {
   onPressItem?: (item: HazardHistoryItem) => void;
 };
 
+const TRANSLATIONS = {
+  sheet_title: { en: 'My Reports', fr: 'Mes signalements', ar: 'تبليغاتي' },
+  sheet_subtitle: { en: 'History of hazards sent from this device', fr: 'Historique des dangers signalés depuis cet appareil', ar: 'سجل المخاطر المرسلة من هذا الجهاز' },
+  loading: { en: 'Loading...', fr: 'Chargement...', ar: 'جاري التحميل...' },
+  empty_title: { en: 'No reports currently', fr: 'Aucun signalement actuellement', ar: 'لا توجد تبليغات حالياً' },
+  empty_subtitle: { en: 'Use "Report Hazard" to add your first point.', fr: 'Utilisez "Signaler un danger" pour ajouter votre premier point.', ar: 'استخدم "إبلاغ عن خطر" لإضافة أول نقطة لك.' },
+  close: { en: 'Close', fr: 'Fermer', ar: 'إغلاق' },
+  severity_label: { en: 'Severity', fr: 'Gravité', ar: 'الخطورة' },
+  default_title: { en: 'Hazard', fr: 'Danger', ar: 'خطر' },
+};
+
 export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
   const { theme } = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { t, isRTL, language } = useTrans(TRANSLATIONS);
+  const styles = useMemo(() => makeStyles(theme, isRTL), [theme, isRTL]);
 
   const payload = props.payload as Payload | undefined;
   const onPressItem = payload?.onPressItem;
@@ -101,11 +114,13 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
   };
 
   const renderItem = ({ item }: { item: HazardHistoryItem }) => {
+    // Dynamic localization for category name based on current language
     const title =
-      item.category?.name_fr ||
-      item.category?.name_en ||
+      (language === 'fr' ? item.category?.name_fr :
+        language === 'en' ? item.category?.name_en :
+          item.category?.name_ar) ||
       item.category?.slug ||
-      'Danger';
+      t('default_title');
 
     const createdAt = item.created_at?.slice(0, 16).replace('T', ' ') ?? '';
 
@@ -144,7 +159,7 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
               </Text>
             )}
             <Text style={styles.rowMeta} numberOfLines={1}>
-              الخطورة {item.severity} • {createdAt}
+              {t('severity_label')} {item.severity} • {createdAt}
             </Text>
           </View>
         </View>
@@ -165,31 +180,31 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
       safeAreaInsets={{ top: Dimensions.get('window').height * 0.55, left: 0, right: 0, bottom: 0 }}
     >
       <View style={styles.sheetHeader}>
-        <Text style={styles.sheetTitle}>تبليغاتي</Text>
+        <Text style={styles.sheetTitle}>{t('sheet_title')}</Text>
         <Text style={styles.sheetSubtitle}>
-          سجل المخاطر المرسلة من هذا الجهاز
+          {t('sheet_subtitle')}
         </Text>
       </View>
 
       {loading && !items.length ? (
         <View style={styles.loaderWrapper}>
           <ActivityIndicator />
-          <Text style={styles.loaderText}>جاري التحميل...</Text>
+          <Text style={styles.loaderText}>{t('loading')}</Text>
         </View>
       ) : items.length === 0 ? (
         <View style={styles.emptyWrapper}>
-          <Text style={styles.emptyTitle}>لا توجد تبليغات حالياً</Text>
+          <Text style={styles.emptyTitle}>{t('empty_title')}</Text>
           <Text style={styles.emptySubtitle}>
-            استخدم "إبلاغ عن خطر" لإضافة أول نقطة لك.
+            {t('empty_subtitle')}
           </Text>
 
           {/* optional close button */}
           <TouchableOpacity
-            style={{ marginTop: 12, alignSelf: 'flex-start' }}
+            style={{ marginTop: 12, alignSelf: isRTL ? 'flex-start' : 'flex-end' }}
             onPress={() => SheetManager.hide(props.sheetId)}
             activeOpacity={0.8}
           >
-            <Text style={{ color: theme.colors.textMuted }}>إغلاق</Text>
+            <Text style={{ color: theme.colors.textMuted }}>{t('close')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -218,7 +233,7 @@ export const HazardHistorySheet: React.FC<SheetProps> = (props) => {
   );
 };
 
-const makeStyles = (theme: AppTheme) =>
+const makeStyles = (theme: AppTheme, isRTL: boolean) =>
   StyleSheet.create({
     sheetContainer: {
       paddingBottom: 8,
@@ -243,13 +258,13 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 17,
       fontWeight: '600',
       color: theme.colors.text,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
     sheetSubtitle: {
       marginTop: 4,
       fontSize: 12,
       color: theme.colors.textMuted,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     loaderWrapper: {
@@ -266,19 +281,19 @@ const makeStyles = (theme: AppTheme) =>
     emptyWrapper: {
       paddingHorizontal: 16,
       paddingVertical: 20,
-      alignItems: 'flex-end',
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     emptyTitle: {
       fontSize: 14,
       fontWeight: '500',
       color: theme.colors.text,
       marginBottom: 4,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
     emptySubtitle: {
       fontSize: 12,
       color: theme.colors.textMuted,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     listContent: {
@@ -287,7 +302,7 @@ const makeStyles = (theme: AppTheme) =>
       gap: 8,
     },
     row: {
-      flexDirection: 'row-reverse',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       borderRadius: 12,
       paddingHorizontal: 12,
@@ -295,7 +310,7 @@ const makeStyles = (theme: AppTheme) =>
       backgroundColor: theme.colors.card,
     },
     rowLeft: {
-      flexDirection: 'row-reverse',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 10,
       flex: 1,
@@ -310,19 +325,19 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 14,
       fontWeight: '500',
       color: theme.colors.text,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
     rowNote: {
       fontSize: 12,
       color: theme.colors.text,
       marginTop: 2,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
     rowMeta: {
       fontSize: 11,
       color: theme.colors.textMuted,
       marginTop: 2,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
     footerLoader: {
       paddingVertical: 10,

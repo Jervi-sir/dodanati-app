@@ -1,7 +1,27 @@
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { RouteSummary } from '@/contexts/6-route-context';
+import { useTrans } from '@/hooks/use-trans';
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+
+const TRANSLATIONS = {
+  estimating: { en: 'Estimating, a few seconds...', fr: 'Estimation en cours...', ar: 'جاري التقدير، بضع ثوان...' },
+  long_press_hint: {
+    en: 'Long press on another point to calculate a new route, or press X to cancel.',
+    fr: 'Appuyez longuement sur un autre point pour calculer un nouvel itinéraire, ou appuyez sur X pour annuler.',
+    ar: 'اضغط مطولاً على نقطة أخرى في الخريطة لتقدير مسار جديد، أو اضغط على X للإلغاء.',
+  },
+  route_to_dest: { en: 'Route to destination', fr: 'Itinéraire vers la destination', ar: 'المسار إلى الوجهة' },
+  approx_dist: { en: 'Approx distance:', fr: 'Distance approx:', ar: 'المسافة التقريبية :' },
+  speed_bump: { en: 'Speed Bumps', fr: 'Dos-d\'âne', ar: 'دودانة' },
+  pothole: { en: 'Pothole', fr: 'Nid-de-poule', ar: 'حفرة' },
+  calculating: { en: 'Calculating...', fr: 'Calcul en cours...', ar: 'جاري الحساب...' },
+  change_route_hint: {
+    en: 'Long press to change route or press X to leave.',
+    fr: 'Appuyez longuement sur la carte pour changer d\'itinéraire ou appuyez sur X pour quitter.',
+    ar: 'اضغط مطولاً على الخريطة لتغيير المسار أو اضغط على X للمغادرة.',
+  },
+};
 
 type Props = {
   routeSummary: RouteSummary | null;
@@ -11,20 +31,22 @@ type Props = {
 
 export const RouteSummarySection = ({ routeLoading, routeSummary, onQuit }: Props) => {
   const { theme } = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { t, isRTL } = useTrans(TRANSLATIONS);
+  const styles = useMemo(() => makeStyles(theme, isRTL), [theme, isRTL]);
+
   // If summary is not yet available: show hint involving destination
   if (!routeSummary) {
     return (
       <View style={styles.routeSummaryCard}>
         {routeLoading && (
           <Text style={styles.routeSummarySub}>
-            جاري التقدير، بضع ثوان...
+            {t('estimating')}
           </Text>
         )}
 
         {!routeLoading && (
           <Text style={styles.routeSummarySub}>
-            اضغط مطولاً على نقطة أخرى في الخريطة لتقدير مسار جديد، أو اضغط على X للإلغاء.
+            {t('long_press_hint')}
           </Text>
         )}
       </View>
@@ -47,30 +69,30 @@ export const RouteSummarySection = ({ routeLoading, routeSummary, onQuit }: Prop
         <Text style={styles.quitButtonText}>✕</Text>
       </TouchableOpacity>
 
-      <Text style={styles.routeSummaryTitle}>المسار إلى الوجهة</Text>
+      <Text style={styles.routeSummaryTitle}>{t('route_to_dest')}</Text>
       <Text style={styles.routeSummaryLine}>
-        المسافة التقريبية : {routeSummary.distance_km.toFixed(1)} كم
+        {t('approx_dist')} {routeSummary.distance_km.toFixed(1)} km
       </Text>
       <Text style={styles.routeSummaryLine}>
-        دودانة : {speedBumps}
+        {t('speed_bump')} : {speedBumps}
       </Text>
       <Text style={[styles.routeSummaryLine]}>
-        حفرة : {potholes}
+        {t('pothole')} : {potholes}
       </Text>
 
       {routeLoading && (
-        <Text style={styles.routeSummarySub}>جاري الحساب...</Text>
+        <Text style={styles.routeSummarySub}>{t('calculating')}</Text>
       )}
       {!routeLoading && (
         <Text style={styles.routeSummarySub}>
-          اضغط مطولاً على الخريطة لتغيير المسار أو اضغط على X للمغادرة.
+          {t('change_route_hint')}
         </Text>
       )}
     </View>
   );
 };
 
-const makeStyles = (theme: AppTheme) =>
+const makeStyles = (theme: AppTheme, isRTL: boolean) =>
   StyleSheet.create({
     routeSummaryCard: {
       position: 'relative',
@@ -98,7 +120,7 @@ const makeStyles = (theme: AppTheme) =>
       fontWeight: '600',
       marginBottom: 4,
       fontSize: 14,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     routeSummaryLine: {
@@ -106,7 +128,7 @@ const makeStyles = (theme: AppTheme) =>
         ? '#E5E7EB'
         : '#D1D5DB',                           // slightly brighter on dark mode
       fontSize: 13,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     routeSummarySub: {
@@ -114,7 +136,7 @@ const makeStyles = (theme: AppTheme) =>
         ? '#9CA3AF'
         : '#9CA3AFCC',                         // more transparent soft gray
       fontSize: 11,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     quitButton: {

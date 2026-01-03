@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import ActionSheet, { SheetProps, SheetManager, ScrollView } from 'react-native-actions-sheet';
 import { useOfflineQueueStore } from '@/stores/offline-queue-store';
@@ -6,6 +6,34 @@ import { useHazards } from '@/contexts/5-hazard-context';
 import { useUI } from '@/contexts/4-ui-context';
 import { useLocation } from '@/contexts/3-location-context';
 import TrashIcon from '@/assets/icons/trash-icon';
+import { useTrans } from '@/hooks/use-trans';
+
+const TRANSLATIONS = {
+  sheet_title: { en: 'Pending Reports', fr: 'Signalements en attente', ar: 'تبليغات في الانتظار' },
+  subtitle: { en: 'reports to sync', fr: 'signalements à synchroniser', ar: 'تبليغ(ات) للمزامنة' },
+  delete: { en: 'Delete', fr: 'Supprimer', ar: 'حذف' },
+  delete_all: { en: 'Delete All', fr: 'Tout supprimer', ar: 'حذف الكل' },
+  sync: { en: 'Sync', fr: 'Synchroniser', ar: 'مزامنة' },
+  later: { en: 'Later', fr: 'Plus tard', ar: 'لاحقاً' },
+  alert_delete_title: { en: 'Delete', fr: 'Supprimer', ar: 'حذف' },
+  alert_delete_msg: { en: 'Do you really want to delete this pending report?', fr: 'Voulez-vous vraiment supprimer ce signalement en attente ?', ar: 'هل تريد حقًا حذف هذا التبليغ المعلق؟' },
+  alert_delete_all_title: { en: 'Delete All', fr: 'Tout supprimer', ar: 'حذف الكل' },
+  alert_delete_all_msg: { en: 'Do you really want to delete all pending reports?', fr: 'Voulez-vous vraiment supprimer tous les signalements en attente ?', ar: 'هل تريد حقًا حذف جميع التبليغات المعلقة؟' },
+  alert_delete_selected_title: { en: 'Delete Selected', fr: 'Supprimer la sélection', ar: 'حذف المحدد' },
+  alert_delete_selected_msg: { en: 'Do you really want to delete selected reports?', fr: 'Voulez-vous vraiment supprimer les signalements sélectionnés ?', ar: 'هل تريد حقًا حذف التبليغات المحددة؟' },
+  snackbar_no_reports: { en: 'No reports to sync', fr: 'Aucun signalement à synchroniser', ar: 'لا توجد تبليغات للمزامنة' },
+  snackbar_synced: { en: 'reports synced', fr: 'signalements synchronisés', ar: 'تبليغ(ات) تمت مزامنتها' },
+  snackbar_failed: { en: 'failures', fr: 'echecs', ar: 'فشل' },
+  snackbar_sync_error: { en: 'Sync Error', fr: 'Erreur de synchronisation', ar: 'خطأ في المزامنة' },
+  deleted_msg: { en: 'Report deleted', fr: 'Signalement supprimé', ar: 'تم حذف التبليغ' },
+  deleted_selected_msg: { en: 'Selected reports deleted', fr: 'Signalements sélectionnés supprimés', ar: 'تم حذف التبليغات المحددة' },
+  cleared_msg: { en: 'Queue cleared', fr: 'File d\'attente vidée', ar: 'تم إفراغ قائمة الانتظار' },
+  cancel: { en: 'Cancel', fr: 'Annuler', ar: 'إلغاء' },
+  time_now: { en: 'Now', fr: 'Maintenant', ar: 'الآن' },
+  time_min: { en: 'm ago', fr: 'min', ar: 'ذ' }, // Simplified for template literal usage
+  time_hour: { en: 'h ago', fr: 'h', ar: 'س' },
+  report_default: { en: 'Report', fr: 'Signalement', ar: 'تبليغ' },
+};
 
 const SyncQueueSheet = (props: SheetProps) => {
   const { queue, removeFromQueue, clearQueue } = useOfflineQueueStore();
@@ -14,6 +42,10 @@ const SyncQueueSheet = (props: SheetProps) => {
   const { mapRef, setRegion } = useLocation();
   const [syncing, setSyncing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { t, isRTL, language } = useTrans(TRANSLATIONS);
+
+  // Use styles with RTL support
+  const styles = useMemo(() => makeStyles(isRTL), [isRTL]);
 
   const toggleSelection = (id: string) => {
     const newSelected = new Set(selectedIds);
@@ -28,7 +60,7 @@ const SyncQueueSheet = (props: SheetProps) => {
   /* ------------------- Handlers ------------------- */
   const handleSyncAll = async () => {
     if (queue.length === 0) {
-      showSnackbar('لا توجد تبليغات للمزامنة', 'معلومة');
+      showSnackbar(t('snackbar_no_reports'), "Info");
       return;
     }
 
@@ -41,11 +73,11 @@ const SyncQueueSheet = (props: SheetProps) => {
       // Clear successfully synced items
       if (result.success > 0) {
         await clearQueue();
-        showSnackbar(`تمت مزامنة ${result.success} تبليغ(ات)`, 'حسنا');
+        showSnackbar(`${result.success} ${t('snackbar_synced')}`, 'OK');
       }
 
       if (result.failed > 0) {
-        showSnackbar(`${result.failed} فشل`, 'خطأ');
+        showSnackbar(`${result.failed} ${t('snackbar_failed')}`, 'Error');
       }
 
       // Close sheet if all items synced successfully
@@ -54,7 +86,7 @@ const SyncQueueSheet = (props: SheetProps) => {
       }
     } catch (error) {
       console.error('Bulk sync failed:', error);
-      showSnackbar('خطأ في المزامنة', 'خطأ');
+      showSnackbar(t('snackbar_sync_error'), 'Error');
     } finally {
       setSyncing(false);
     }
@@ -71,24 +103,34 @@ const SyncQueueSheet = (props: SheetProps) => {
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
 
-    if (minutes < 1) return 'الآن';
-    if (minutes < 60) return `منذ ${minutes} د`;
-    if (hours < 24) return `منذ ${hours} س`;
-    return date.toLocaleDateString('ar-DZ', { day: 'numeric', month: 'short' });
+    if (minutes < 1) return t('time_now');
+
+    if (language === 'ar') {
+      if (minutes < 60) return `منذ ${minutes} د`;
+      if (hours < 24) return `منذ ${hours} س`;
+    } else if (language === 'fr') {
+      if (minutes < 60) return `il y a ${minutes} min`;
+      if (hours < 24) return `il y a ${hours} h`;
+    } else {
+      if (minutes < 60) return `${minutes} m ago`;
+      if (hours < 24) return `${hours} h ago`;
+    }
+
+    return date.toLocaleDateString(language === 'ar' ? 'ar-DZ' : (language === 'fr' ? 'fr-FR' : 'en-US'), { day: 'numeric', month: 'short' });
   };
 
   const handleDeleteOne = (id: string) => {
     Alert.alert(
-      'حذف',
-      'هل تريد حقًا حذف هذا التبليغ المعلق؟',
+      t('alert_delete_title'),
+      t('alert_delete_msg'),
       [
-        { text: 'إلغاء', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'حذف',
+          text: t('delete'),
           style: 'destructive',
           onPress: () => {
             removeFromQueue(id);
-            showSnackbar('تم حذف التبليغ', 'حسنا');
+            showSnackbar(t('deleted_msg'), 'OK');
             if (queue.length <= 1) {
               SheetManager.hide('sync-queue-sheet');
             }
@@ -100,17 +142,17 @@ const SyncQueueSheet = (props: SheetProps) => {
 
   const handleDeleteSelected = () => {
     Alert.alert(
-      'حذف المحدد',
-      `هل تريد حقًا حذف ${selectedIds.size} تبليغ(ات)؟`,
+      t('alert_delete_selected_title'),
+      t('alert_delete_selected_msg'),
       [
-        { text: 'إلغاء', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'حذف',
+          text: t('delete'),
           style: 'destructive',
           onPress: () => {
             selectedIds.forEach((id) => removeFromQueue(id));
             setSelectedIds(new Set());
-            showSnackbar(`تم حذف ${selectedIds.size} تبليغ(ات)`, 'حسنا');
+            showSnackbar(t('deleted_selected_msg'), 'OK');
 
             // If we deleted everything, close the sheet
             if (queue.length - selectedIds.size <= 0) {
@@ -124,17 +166,17 @@ const SyncQueueSheet = (props: SheetProps) => {
 
   const handleDeleteAll = () => {
     Alert.alert(
-      'حذف الكل',
-      'هل تريد حقًا حذف جميع التبليغات المعلقة؟',
+      t('alert_delete_all_title'),
+      t('alert_delete_all_msg'),
       [
-        { text: 'إلغاء', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'حذف الكل',
+          text: t('delete_all'),
           style: 'destructive',
           onPress: async () => {
             await clearQueue();
             setSelectedIds(new Set());
-            showSnackbar('تم إفراغ قائمة الانتظار', 'حسنا');
+            showSnackbar(t('cleared_msg'), 'OK');
             SheetManager.hide('sync-queue-sheet');
           }
         }
@@ -153,28 +195,28 @@ const SyncQueueSheet = (props: SheetProps) => {
     >
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>تبليغات في الانتظار</Text>
-          <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+          <Text style={styles.title}>{t('sheet_title')}</Text>
+          <View style={styles.headerControls}>
             <Text style={styles.subtitle}>
-              {queue.length} تبليغ(ات) للمزامنة
+              {queue.length} {t('subtitle')}
             </Text>
             {selectedIds.size > 0 ? (
               <TouchableOpacity
-                style={[styles.buttonSecondary, { borderColor: '#FF3B30', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 100 }]}
+                style={[styles.buttonSecondary, styles.miniButton]}
                 onPress={handleDeleteSelected}
                 disabled={syncing}
               >
-                <Text style={[styles.buttonTextSecondary, { color: '#FF3B30', fontSize: 12 }]}>
-                  حذف ({selectedIds.size})
+                <Text style={[styles.buttonTextSecondary, styles.dangerText]}>
+                  {t('delete')} ({selectedIds.size})
                 </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={[styles.buttonSecondary, { borderColor: '#FF3B30', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 100 }]}
+                style={[styles.buttonSecondary, styles.miniButton]}
                 onPress={handleDeleteAll}
                 disabled={syncing}
               >
-                <Text style={[styles.buttonTextSecondary, { color: '#FF3B30', fontSize: 12 }]}>حذف الكل</Text>
+                <Text style={[styles.buttonTextSecondary, styles.dangerText]}>{t('delete_all')}</Text>
               </TouchableOpacity>
             )}
 
@@ -216,7 +258,7 @@ const SyncQueueSheet = (props: SheetProps) => {
                 >
                   <View style={styles.reportDetails}>
                     <Text style={styles.reportCategory}>
-                      {report.categoryLabel || 'تبليغ'}
+                      {report.categoryLabel || t('report_default')}
                     </Text>
                     <Text style={styles.reportTime}>
                       {formatDate(report.queuedAt)}
@@ -239,7 +281,7 @@ const SyncQueueSheet = (props: SheetProps) => {
             onPress={handleDismiss}
             disabled={syncing}
           >
-            <Text style={styles.buttonTextSecondary}>لاحقاً</Text>
+            <Text style={styles.buttonTextSecondary}>{t('later')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -250,7 +292,7 @@ const SyncQueueSheet = (props: SheetProps) => {
             {syncing ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonTextPrimary}>مزامنة</Text>
+              <Text style={styles.buttonTextPrimary}>{t('sync')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -259,7 +301,7 @@ const SyncQueueSheet = (props: SheetProps) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 20,
@@ -276,12 +318,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 4,
-    textAlign: 'right',
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  headerControls: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 16
   },
   subtitle: {
     fontSize: 14,
     color: '#8E8E93',
-    textAlign: 'right',
+    textAlign: isRTL ? 'right' : 'left',
   },
   list: {
     maxHeight: 300,
@@ -290,7 +338,7 @@ const styles = StyleSheet.create({
   reportItem: {
     flex: 1,
     padding: 16,
-    flexDirection: 'row-reverse',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
@@ -302,19 +350,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 4,
-    textAlign: 'right',
+    textAlign: isRTL ? 'right' : 'left',
   },
   reportTime: {
     fontSize: 12,
     color: '#8E8E93',
     marginBottom: 4,
-    textAlign: 'right',
+    textAlign: isRTL ? 'right' : 'left',
   },
   reportNote: {
     fontSize: 14,
     color: '#AEAEB2',
     fontStyle: 'italic',
-    textAlign: 'right',
+    textAlign: isRTL ? 'right' : 'left',
   },
   severityBadge: {
     backgroundColor: '#FF9500',
@@ -331,7 +379,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   actions: {
-    flexDirection: 'row-reverse',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     gap: 12,
   },
   button: {
@@ -349,6 +397,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#3A3A3C',
   },
+  miniButton: {
+    borderColor: '#FF3B30',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 100
+  },
   buttonDisabled: {
     opacity: 0.5,
   },
@@ -362,11 +416,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  dangerText: {
+    color: '#FF3B30',
+    fontSize: 12
+  },
   reportItemContainer: {
     backgroundColor: '#2C2C2E',
     borderRadius: 12,
     marginBottom: 12,
-    flexDirection: 'row-reverse',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     paddingRight: 16,
   },

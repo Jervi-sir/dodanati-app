@@ -4,11 +4,30 @@ import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ActionSheet, { SheetManager, SheetProps } from 'react-native-actions-sheet';
 import { useHazards } from '@/contexts/5-hazard-context';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
-import { useUI } from '@/contexts/4-ui-context';
+import { useTrans } from '@/hooks/use-trans';
+
+const TRANSLATIONS = {
+  delete_title: { en: 'Delete', fr: 'Supprimer', ar: 'حذف' },
+  delete_confirm: {
+    en: 'Do you really want to delete this report?',
+    fr: 'Voulez-vous vraiment supprimer ce signalement ?',
+    ar: 'هل تريد حقًا حذف هذا التبليغ؟'
+  },
+  cancel: { en: 'Cancel', fr: 'Annuler', ar: 'إلغاء' },
+  delete: { en: 'Delete', fr: 'Supprimer', ar: 'حذف' },
+  default_title: { en: 'Road Hazard', fr: 'Danger sur la route', ar: 'خطر على الطريق' },
+  coordinates: { en: 'Coordinates', fr: 'Coordonnées', ar: 'الإحداثيات' },
+  severity: { en: 'Severity', fr: 'Gravité', ar: 'الخطورة' },
+  reports_count: { en: 'Reports count', fr: 'Nombre de signalements', ar: 'عدد التبليغات' },
+  last_report: { en: 'Last reported', fr: 'Dernier signalement', ar: 'آخر تبليغ' },
+  note: { en: 'Note', fr: 'Note', ar: 'ملاحظة' },
+  close: { en: 'Close', fr: 'Fermer', ar: 'إغلاق' },
+};
 
 export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
   const { theme } = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { t, isRTL } = useTrans(TRANSLATIONS);
+  const styles = useMemo(() => makeStyles(theme, isRTL), [theme, isRTL]);
 
   const {
     selectedHazard,
@@ -20,12 +39,12 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
     if (!selectedHazard) return;
 
     Alert.alert(
-      'Supprimer',
-      'Voulez-vous vraiment supprimer ce signalement ?',
+      t('delete_title'),
+      t('delete_confirm'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('delete'),
           style: 'destructive',
           onPress: () => {
             SheetManager.hide('hazard-detail-sheet');
@@ -50,27 +69,27 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
           {selectedHazard?.category?.name_ar ||
             selectedHazard?.category?.name_fr ||
             selectedHazard?.category?.name_en ||
-            'خطر على الطريق'}
+            t('default_title')}
         </Text>
 
         {selectedHazard && (
           <>
             <Text style={styles.subtitle}>
-              الإحداثيات: {selectedHazard.lat.toFixed(5)}, {selectedHazard.lng.toFixed(5)}
+              {t('coordinates')}: {selectedHazard.lat.toFixed(5)}, {selectedHazard.lng.toFixed(5)}
             </Text>
 
             <View style={styles.section}>
-              <Text style={styles.label}>الخطورة</Text>
+              <Text style={styles.label}>{t('severity')}</Text>
               <Text style={styles.value}>{selectedHazard.severity} / 5</Text>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.label}>عدد التبليغات</Text>
+              <Text style={styles.label}>{t('reports_count')}</Text>
               <Text style={styles.value}>{selectedHazard.reports_count}</Text>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.label}>آخر تبليغ</Text>
+              <Text style={styles.label}>{t('last_report')}</Text>
               <Text style={styles.value}>
                 {selectedHazard.last_reported_at || '—'}
               </Text>
@@ -78,7 +97,7 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
 
             {selectedHazard.note ? (
               <View style={styles.section}>
-                <Text style={styles.label}>ملاحظة</Text>
+                <Text style={styles.label}>{t('note')}</Text>
                 <Text style={styles.noteText}>{selectedHazard.note}</Text>
               </View>
             ) : null}
@@ -94,12 +113,12 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
               ]}
               onPress={handleDelete}
             >
-              <Text style={[styles.closeText, { color: '#fff' }]}>حذف</Text>
+              <Text style={[styles.closeText, { color: '#fff' }]}>{t('delete')}</Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity style={styles.closeButton} onPress={() => SheetManager.hide('hazard-detail-sheet')}>
-            <Text style={styles.closeText}>إغلاق</Text>
+            <Text style={styles.closeText}>{t('close')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -107,7 +126,7 @@ export const HazardDetailSheet: React.FC<SheetProps> = (props) => {
   );
 };
 
-const makeStyles = (theme: AppTheme) =>
+const makeStyles = (theme: AppTheme, isRTL: boolean) =>
   StyleSheet.create({
     sheetContainer: {
       paddingBottom: 8,
@@ -133,43 +152,43 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 17,
       fontWeight: '600',
       color: theme.colors.text,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     subtitle: {
       marginTop: 4,
       fontSize: 12,
       color: theme.colors.textMuted,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     section: {
       marginTop: 12,
-      alignItems: 'flex-end',
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
 
     label: {
       fontSize: 12,
       color: theme.colors.textMuted,
       marginBottom: 2,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     value: {
       fontSize: 14,
       color: theme.colors.text,
       fontWeight: '500',
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     noteText: {
       fontSize: 14,
       color: theme.colors.text,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     footer: {
-      flexDirection: 'row-reverse',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 16,
       marginTop: 16,
       paddingBottom: 24,

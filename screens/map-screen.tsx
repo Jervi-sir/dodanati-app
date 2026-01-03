@@ -14,10 +14,16 @@ import { SnackbarBanner } from './components/snackbar-banner';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { SheetManager } from 'react-native-actions-sheet';
 import { LocationPuck } from '@/assets/icons/location-puck';
+import { useTrans } from '@/hooks/use-trans';
 
 // ALGERIA_GEOJSON import removed
 
 const MAP_WIDTH = Dimensions.get('window').width;
+
+const TRANSLATIONS = {
+  initializing: { en: 'Initializing...', fr: 'Initialisation...', ar: 'جاري البدء...' },
+  destination: { en: 'Destination', fr: 'Destination', ar: 'الوجهة' },
+};
 
 /* -------------------------------------------------------------------------- */
 /*                          Client-side "visual" cluster                      */
@@ -114,6 +120,7 @@ function clusterHazardsClientSide(params: {
 export const MapScreen = () => {
   const { mode, theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { t } = useTrans(TRANSLATIONS);
 
   const { bootLoading } = useDevice();
   const {
@@ -268,7 +275,7 @@ export const MapScreen = () => {
       {isLoading && (
         <View style={styles.loaderOverlay}>
           <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={{ marginTop: 8 }}>Initialisation…</Text>
+          <Text style={{ marginTop: 8 }}>{t('initializing')}</Text>
         </View>
       )}
 
@@ -331,7 +338,7 @@ export const MapScreen = () => {
         {destination && (
           <Marker
             coordinate={{ latitude: destination.lat, longitude: destination.lng }}
-            title="Destination"
+            title={t('destination')}
             pinColor="#2563EB"
           />
         )}

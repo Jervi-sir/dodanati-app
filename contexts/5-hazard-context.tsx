@@ -12,12 +12,39 @@ import { SheetManager } from 'react-native-actions-sheet';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { useOfflineQueueStore, QueuedHazardReport } from '@/stores/offline-queue-store';
 import { APP_VERSION, CACHE_TTL, CACHE_TTL_MS, DEFAULT_LOCALE, STORAGE_KEY_CACHE_META, STORAGE_KEY_CLUSTERS, STORAGE_KEY_HAZARDS } from '@/utils/const/app-constants';
+import { useTrans } from '@/hooks/use-trans';
+
+const TRANSLATIONS = {
+  device_not_init: { en: 'Device not initialized.', fr: 'Appareil non initialisé.', ar: 'الجهاز غير مهيأ.' },
+  select_category: { en: 'Select a category.', fr: 'Sélectionnez une catégorie.', ar: 'اختر فئة.' },
+  report_queued: { en: 'Report queued', fr: 'Signalement mis en file d\'attente', ar: 'تم وضع التبليغ في الانتظار' },
+  speed_bump_queued: { en: 'Speed bump queued', fr: 'Dos-d\'âne mis en file d\'attente', ar: 'تم وضع المطب في الانتظار' },
+  pothole_queued: { en: 'Pothole queued', fr: 'Nid-de-poule mis en file d\'attente', ar: 'تم وضع الحفرة في الانتظار' },
+  report_saved: { en: 'Report saved.', fr: 'Signalement enregistré.', ar: 'تم حفظ التبليغ.' },
+  speed_bump_saved: { en: 'Speed bump saved.', fr: 'Dos-d\'âne enregistré.', ar: 'تم حفظ المطب.' },
+  pothole_saved: { en: 'Pothole saved.', fr: 'Nid-de-poule enregistré.', ar: 'تم حفظ الحفرة.' },
+  add_details: { en: 'Add details', fr: 'Ajouter détails', ar: 'إضافة تفاصيل' },
+  sending: { en: 'Sending...', fr: 'Envoi en cours...', ar: 'جاري الإرسال...' },
+  report_merged: { en: 'Report merged.', fr: 'Signalement fusionné.', ar: 'تم دمج التبليغ.' },
+  report_added: { en: 'Report added.', fr: 'Signalement ajouté.', ar: 'تم إضافة التبليغ.' },
+  submit_error: { en: 'Cannot submit hazard.', fr: 'Impossible de soumettre le danger.', ar: 'تعذر إرسال الخطر.' },
+  category_not_loaded: { en: 'Category not loaded.', fr: 'Catégorie non chargée.', ar: 'الفئة غير محملة.' },
+  offline_report_deleted: { en: 'Offline report deleted.', fr: 'Signalement hors ligne supprimé.', ar: 'تم حذف التبليغ غير المتصل.' },
+  report_deleted: { en: 'Report deleted.', fr: 'Signalement supprimé.', ar: 'تم حذف التبليغ.' },
+  delete_error: { en: 'Cannot delete report.', fr: 'Impossible de supprimer le signalement.', ar: 'تعذر حذف التبليغ.' },
+  loading_error: { en: 'Loading error', fr: 'Erreur de chargement', ar: 'خطأ في التحميل' },
+  error: { en: 'Error', fr: 'Erreur', ar: 'خطأ' },
+  ok: { en: 'OK', fr: 'OK', ar: 'موافق' },
+};
 
 export type RoadHazardCategoryTaxonomyItem = {
   id?: number;
   slug?: string;
   label?: string;
   icon?: string | null;
+  name_en?: string;
+  name_fr?: string;
+  name_ar?: string;
 };
 
 export type RoadHazard = {
@@ -123,12 +150,18 @@ const FALLBACK_CATEGORIES: RoadHazardCategoryTaxonomyItem[] = [
     id: 2,
     slug: 'pothole',
     label: 'Nid-de-poule',
+    name_fr: 'Nid-de-poule',
+    name_en: 'Pothole',
+    name_ar: 'حفرة',
     icon: 'pothole',
   },
   {
     id: 1,
     slug: 'speed_bump',
     label: 'Dos d’âne',
+    name_fr: 'Dos d’âne',
+    name_en: 'Speed Bump',
+    name_ar: 'مطب',
     icon: 'speed-bump',
   },
 ];
@@ -168,6 +201,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { showSnackbar } = useUI();
   const { isConnected } = useNetworkStatus();
   const { loadQueue, addToQueue, removeFromQueue, queue } = useOfflineQueueStore();
+  const { t } = useTrans(TRANSLATIONS);
 
   const [categories, setCategories] = useState<RoadHazardCategoryTaxonomyItem[]>([]);
   const [hazards, setHazards] = useState<RoadHazard[]>([]);
@@ -399,7 +433,7 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         lastFetchRef.current = { lat, lng, zoom };
       } catch (err) {
         console.error('Nearby hazards error', err);
-        showSnackbar('Erreur de chargement', 'Erreur');
+        showSnackbar(t('loading_error'), t('error'));
       } finally {
         setHazardsLoading(false);
       }
@@ -435,11 +469,11 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const handleSubmitHazard = async () => {
     if (!deviceUuid) {
-      Alert.alert('Erreur', 'Device non initialisé.');
+      Alert.alert(t('error'), t('device_not_init'));
       return;
     }
     if (!selectedCategoryId) {
-      Alert.alert('Erreur', 'Sélectionnez une catégorie.');
+      Alert.alert(t('error'), t('select_category'));
       return;
     }
 
@@ -471,12 +505,12 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setNote('');
       setSeverity(3);
 
-      showSnackbar("Signalement mis en file d'attente", 'OK');
+      showSnackbar(t('report_queued'), t('ok'));
       return;
     }
 
     try {
-      showSnackbar('Envoi en cours...');
+      showSnackbar(t('sending'));
 
       const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
       const newHazard: RoadHazard = res.data.data;
@@ -486,21 +520,21 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setNote('');
       setSeverity(3);
 
-      showSnackbar(res.data.meta?.merged ? 'Signalement fusionné.' : 'Signalement ajouté.', 'OK');
+      showSnackbar(res.data.meta?.merged ? t('report_merged') : t('report_added'), t('ok'));
     } catch (err) {
       console.error('Submit hazard error', err);
-      Alert.alert('Erreur', 'Impossible de soumettre le danger.');
+      Alert.alert(t('error'), t('submit_error'));
     }
   };
 
   const handleQuickReport = async (slug: 'speed_bump' | 'pothole') => {
     if (!deviceUuid) {
-      Alert.alert('Erreur', 'Device non initialisé.');
+      Alert.alert(t('error'), t('device_not_init'));
       return;
     }
     const category = categories.find((c) => c.slug === slug);
     if (!category?.id) {
-      Alert.alert('Erreur', 'Catégorie non chargée.');
+      Alert.alert(t('error'), t('category_not_loaded'));
       return;
     }
 
@@ -524,11 +558,11 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         categorySlug: category.slug,
         categoryLabel: category.label,
       });
-      showSnackbar(slug === 'speed_bump' ? "Dos-d'âne mis en file d'attente" : 'حفرة mis en file d’attente', 'OK');
+      showSnackbar(slug === 'speed_bump' ? t('speed_bump_queued') : t('pothole_queued'), t('ok'));
       return;
     }
 
-    showSnackbar(slug === 'speed_bump' ? "Dos-d'âne enregistré." : 'حفرة enregistré.', 'Ajouter détails');
+    showSnackbar(slug === 'speed_bump' ? t('speed_bump_saved') : t('pothole_saved'), t('add_details'));
 
     try {
       const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
@@ -543,18 +577,18 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const hazardToDelete = hazards.find((h) => h.id === id);
     if (hazardToDelete?.isOffline && hazardToDelete.offlineId) {
       await removeFromQueue(hazardToDelete.offlineId);
-      showSnackbar('Signalement hors ligne supprimé.');
+      showSnackbar(t('offline_report_deleted'));
       return;
     }
 
     setHazards((prev) => prev.filter((h) => h.id !== id));
-    showSnackbar('Signalement supprimé.');
+    showSnackbar(t('report_deleted'));
 
     try {
       await api.delete(buildRoute(ApiRoutes.hazards.delete, { hazard_id: id }));
     } catch (err) {
       console.error('Delete hazard error', err);
-      Alert.alert('Erreur', 'Impossible de supprimer le signalement.');
+      Alert.alert(t('error'), t('delete_error'));
 
       if (region) {
         const z = zoomFromRegion(region);

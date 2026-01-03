@@ -57,7 +57,7 @@ export const OfflineIndicator = () => {
         <View style={styles.content}>
           <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <Text style={styles.text}>
-              {!isConnected ? 'وضع عدم الاتصال' : `${queue.length} تبليغ(ات) في الانتظار`}
+              {!isConnected ? 'غير متصل بالانترنت' : `${queue.length} تبليغ(ات) في الانتظار`}
             </Text>
             <View style={[styles.dot, !isConnected ? styles.dotOffline : styles.dotOnline]} />
           </View>

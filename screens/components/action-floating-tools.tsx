@@ -17,6 +17,35 @@ import { SheetManager } from 'react-native-actions-sheet';
 import { OfflineIndicator } from '@/components/offline-indicator';
 import { useRef, useState } from 'react';
 import InfoIcon from '@/assets/icons/info-icon';
+import { useTrans } from '@/hooks/use-trans';
+
+const TRANSLATIONS = {
+  set_destination_alert: {
+    en: 'Please set a destination to start.',
+    fr: 'Veuillez définir une destination pour démarrer.',
+    ar: 'يرجى تحديد وجهة للبدء.',
+  },
+  speed_bump: {
+    en: 'دودانة',
+    fr: 'Dos-d\'âne',
+    ar: 'دودانة',
+  },
+  pothole: {
+    en: 'حفرة',
+    fr: 'حفرة',
+    ar: 'حفرة',
+  },
+  detailed_view: {
+    en: 'Detailed view • Total',
+    fr: 'Vue détaillée • Total',
+    ar: 'عرض تفصيلي • الإجمالي',
+  },
+  report_button: {
+    en: 'Report ＋',
+    fr: 'Signaler ＋',
+    ar: 'إبلاغ ＋',
+  },
+};
 
 export const ActionFloatingTools = () => {
   const { theme } = useTheme();
@@ -27,6 +56,7 @@ export const ActionFloatingTools = () => {
   const { locationLoading, recenterOnUser, isSimulatingLocation, toggleSimulationMode, mapRef } = useLocation();
   const { routeSummary, routeLoading, clearRoute, destination } = useRoute();
   const { showSnackbar } = useUI();
+  const { t, isRTL } = useTrans(TRANSLATIONS);
 
   const pan = useRef(new Animated.Value(0)).current;
   const [containerHeight, setContainerHeight] = useState(0);
@@ -110,7 +140,7 @@ export const ActionFloatingTools = () => {
             ]}
             onPress={() => {
               if (!isDriveMode && !destination) {
-                showSnackbar("يرجى تحديد وجهة للبدء.", "حسنا");
+                showSnackbar(t('set_destination_alert'), "OK");
                 return;
               }
               toggleDriveMode();
@@ -183,8 +213,8 @@ export const ActionFloatingTools = () => {
               {!isDriveMode && (
                 <>
                   {[
-                    { id: 'speed_bump', label: 'دودانة', color: '#F59E0B' },
-                    { id: 'pothole', label: 'حفرة', color: '#EF4444' },
+                    { id: 'speed_bump', label: t('speed_bump'), color: '#F59E0B' },
+                    { id: 'pothole', label: t('pothole'), color: '#EF4444' },
                   ].map((action) => (
                     <TouchableOpacity
                       key={action.id}
@@ -267,7 +297,7 @@ export const ActionFloatingTools = () => {
               color: theme.mode === 'dark' ? '#E5E7EB' : '#111827',
               fontWeight: '600',
             }}>
-              {`عرض تفصيلي • الإجمالي: ${totalInRadius} (${hazardCounts.speed_bump} 🟠, ${hazardCounts.pothole} 🔴)`}
+              {`${t('detailed_view')}: ${totalInRadius} (${hazardCounts.speed_bump} 🟠, ${hazardCounts.pothole} 🔴)`}
             </Text>
           </View>
         }
@@ -330,9 +360,8 @@ export const ActionFloatingTools = () => {
               color: theme.colors.background,
               fontWeight: 'bold',
               fontSize: 15,
-            }}>إبلاغ ＋</Text>
+            }}>{t('report_button')}</Text>
           </TouchableOpacity>
-
         </View>
       </View>
 

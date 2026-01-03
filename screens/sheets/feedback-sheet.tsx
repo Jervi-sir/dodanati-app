@@ -5,11 +5,71 @@ import { useTheme, AppTheme } from '@/contexts/1-theme-context';
 import { useDevice } from '@/contexts/2-device-context';
 import api from '@/utils/api/axios-instance';
 import { ApiRoutes, buildRoute } from '@/utils/api/api';
+import { useTrans } from '@/hooks/use-trans';
+
+const TRANSLATIONS = {
+  sheet_title: {
+    en: 'Send Feedback',
+    fr: 'Envoyer un avis',
+    ar: 'إرسال رأي',
+  },
+  sheet_subtitle: {
+    en: 'Tell us what you like or dislike',
+    fr: 'Dites-nous ce que vous aimez ou n\'aimez pas',
+    ar: 'أخبرنا بما لا يعجبك أو بما يعجبك',
+  },
+  email_label: {
+    en: 'Email (optional)',
+    fr: 'Email (optionnel)',
+    ar: 'البريد الإلكتروني (اختياري)',
+  },
+  email_placeholder: {
+    en: 'Example: contact@example.com',
+    fr: 'Exemple: contact@example.com',
+    ar: 'مثال: contact@example.com',
+  },
+  message_label: {
+    en: 'Your message',
+    fr: 'Votre message',
+    ar: 'رسالتك',
+  },
+  message_placeholder: {
+    en: 'Describe your problem or suggestion...',
+    fr: 'Décrivez votre problème ou suggestion...',
+    ar: 'صف مشكلتك أو اقتراحك...',
+  },
+  submit_btn: {
+    en: 'Send',
+    fr: 'Envoyer',
+    ar: 'إرسال',
+  },
+  alert_success_title: {
+    en: 'Thank you!',
+    fr: 'Merci !',
+    ar: 'شكراً !',
+  },
+  alert_success_msg: {
+    en: 'Your message has been sent successfully.',
+    fr: 'Votre message a été envoyé avec succès.',
+    ar: 'تم إرسال رسالتك بنجاح.',
+  },
+  alert_error_title: {
+    en: 'Oops',
+    fr: 'Oups',
+    ar: 'عفواً',
+  },
+  alert_error_msg: {
+    en: 'An error occurred while sending. Please check your connection.',
+    fr: 'Une erreur est survenue lors de l\'envoi. Veuillez vérifier votre connexion.',
+    ar: 'حدث خطأ أثناء الإرسال. يرجى التحقق من اتصالك.',
+  },
+};
 
 export const FeedbackSheet: React.FC<SheetProps> = (props) => {
   const { theme } = useTheme();
   const { deviceUuid } = useDevice();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { t, isRTL } = useTrans(TRANSLATIONS);
+  const styles = useMemo(() => makeStyles(theme, isRTL), [theme, isRTL]);
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -31,10 +91,10 @@ export const FeedbackSheet: React.FC<SheetProps> = (props) => {
           version: Platform.Version,
         }
       });
-      Alert.alert("شكراً !", "تم إرسال رسالتك بنجاح.");
+      Alert.alert(t('alert_success_title'), t('alert_success_msg'));
       SheetManager.hide(props.sheetId);
     } catch (e) {
-      Alert.alert("عفواً", "حدث خطأ أثناء الإرسال. يرجى التحقق من اتصالك.");
+      Alert.alert(t('alert_error_title'), t('alert_error_msg'));
     } finally {
       setSending(false);
     }
@@ -50,19 +110,19 @@ export const FeedbackSheet: React.FC<SheetProps> = (props) => {
       keyboardHandlerEnabled={true}
     >
       <View style={styles.sheetHeader}>
-        <Text style={styles.sheetTitle}>إرسال رأي</Text>
+        <Text style={styles.sheetTitle}>{t('sheet_title')}</Text>
         <Text style={styles.sheetSubtitle}>
-          أخبرنا بما لا يعجبك أو بما يعجبك
+          {t('sheet_subtitle')}
         </Text>
       </View>
 
       <View style={styles.formContainer}>
         {/* Email Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>البريد الإلكتروني (اختياري)</Text>
+          <Text style={styles.label}>{t('email_label')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="مثال: contact@example.com"
+            placeholder={t('email_placeholder')}
             placeholderTextColor={theme.colors.textMuted}
             value={email}
             onChangeText={setEmail}
@@ -73,10 +133,10 @@ export const FeedbackSheet: React.FC<SheetProps> = (props) => {
 
         {/* Message Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>رسالتك</Text>
+          <Text style={styles.label}>{t('message_label')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="صف مشكلتك أو اقتراحك..."
+            placeholder={t('message_placeholder')}
             placeholderTextColor={theme.colors.textMuted}
             value={message}
             onChangeText={setMessage}
@@ -95,7 +155,7 @@ export const FeedbackSheet: React.FC<SheetProps> = (props) => {
           {sending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>إرسال</Text>
+            <Text style={styles.submitButtonText}>{t('submit_btn')}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -103,10 +163,9 @@ export const FeedbackSheet: React.FC<SheetProps> = (props) => {
   );
 };
 
-const makeStyles = (theme: AppTheme) =>
+const makeStyles = (theme: AppTheme, isRTL: boolean) =>
   StyleSheet.create({
     sheetContainer: {
-      paddingBottom: 40,
       backgroundColor: theme.colors.background,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
@@ -127,13 +186,13 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 18,
       fontWeight: '700',
       color: theme.colors.text,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
     sheetSubtitle: {
       marginTop: 4,
       fontSize: 13,
       color: theme.colors.textMuted,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     formContainer: {
@@ -147,7 +206,7 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 14,
       fontWeight: '600',
       color: theme.colors.text,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
     input: {
       backgroundColor: theme.colors.card,
@@ -158,12 +217,11 @@ const makeStyles = (theme: AppTheme) =>
       color: theme.colors.text,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
     textArea: {
       minHeight: 120,
     },
-
     submitButton: {
       marginTop: 8,
       backgroundColor: theme.colors.accent,

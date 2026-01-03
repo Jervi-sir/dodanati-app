@@ -13,16 +13,25 @@ import ActionSheet, { SheetManager, SheetProps } from 'react-native-actions-shee
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { useLocation } from '@/contexts/3-location-context';
 import { useHazards } from '@/contexts/5-hazard-context';
-import { useUI } from '@/contexts/4-ui-context';
+import { useTrans } from '@/hooks/use-trans';
 
-type RoadHazardCategoryTaxonomyItem = {
-  id?: number;
-  slug?: string;
-  label?: string;
-  icon?: string | null;
+const TRANSLATIONS = {
+  sheet_title: { en: 'Report Hazard', fr: 'Signaler un danger', ar: 'إبلاغ عن خطر' },
+  location: { en: 'Location', fr: 'Localisation', ar: 'الموقع' },
+  category: { en: 'Category', fr: 'Catégorie', ar: 'الفئة' },
+  loading: { en: 'Loading...', fr: 'Chargement...', ar: 'جاري التحميل...' },
+  severity: { en: 'Severity', fr: 'Gravité', ar: 'الخطورة' },
+  note_label: { en: 'Note (optional)', fr: 'Note (optionnel)', ar: 'ملاحظة (اختياري)' },
+  note_placeholder: {
+    en: 'Ex: Very high, invisible at night...',
+    fr: 'Ex: Très élevé, invisible la nuit...',
+    ar: 'مثال: مرتفع جداً، غير مرئي ليلاً...'
+  },
+  submit_btn: { en: 'Save Hazard', fr: 'Enregistrer le danger', ar: 'حفظ الخطر' },
+  sending_btn: { en: 'Sending...', fr: 'Envoi...', ar: 'جاري الإرسال...' },
+  cancel: { en: 'Cancel', fr: 'Annuler', ar: 'إلغاء' },
 };
 
-// ✅ Registerable Sheet: receives SheetProps (no ref prop needed)
 export const HazardReportSheet: React.FC<SheetProps> = (props) => {
   const submitting = false;
 
@@ -40,11 +49,11 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
   } = useHazards();
 
   const { theme } = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { t, isRTL, language } = useTrans(TRANSLATIONS);
+  const styles = useMemo(() => makeStyles(theme, isRTL), [theme, isRTL]);
 
   return (
     <ActionSheet
-      // ✅ important for registerable sheets
       id={props.sheetId}
       gestureEnabled
       containerStyle={styles.sheetContainer}
@@ -52,9 +61,9 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
       safeAreaInsets={{ top: 200, left: 0, right: 0, bottom: 0 }}
     >
       <View style={styles.sheetHeader}>
-        <Text style={styles.sheetTitle}>إبلاغ عن خطر</Text>
+        <Text style={styles.sheetTitle}>{t('sheet_title')}</Text>
         <Text style={styles.sheetSubtitle}>
-          الموقع&nbsp;
+          {t('location')}&nbsp;
           <Text style={styles.sheetSubtitleMono}>
             {region.latitude.toFixed(5)}, {region.longitude.toFixed(5)}
           </Text>
@@ -63,12 +72,12 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
 
       {/* Categories */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>الفئة</Text>
+        <Text style={styles.sectionTitle}>{t('category')}</Text>
 
         {categoriesLoading && (
           <View style={styles.inlineLoader}>
             <ActivityIndicator size="small" />
-            <Text style={styles.inlineLoaderText}>جاري التحميل...</Text>
+            <Text style={styles.inlineLoaderText}>{t('loading')}</Text>
           </View>
         )}
 
@@ -76,6 +85,10 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
           {categories.map((cat) => {
             if (!cat.id) return null;
             const active = selectedCategoryId === cat.id;
+
+            // Pick label based on locale, fallback to cat.label or cat.slug
+            let label = language === 'fr' ? cat.name_fr : (language === 'en' ? cat.name_en : cat.name_ar);
+            if (!label) label = cat.label || cat.slug;
 
             return (
               <TouchableOpacity
@@ -85,7 +98,7 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
                 activeOpacity={0.8}
               >
                 <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {cat.label || cat.slug}
+                  {label}
                 </Text>
               </TouchableOpacity>
             );
@@ -95,7 +108,7 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
 
       {/* Severity */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>الخطورة</Text>
+        <Text style={styles.sectionTitle}>{t('severity')}</Text>
         <View style={styles.chipRow}>
           {[1, 2, 3, 4, 5].map((lvl) => {
             const active = severity === lvl;
@@ -117,11 +130,11 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
 
       {/* Note */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>ملاحظة (اختياري)</Text>
+        <Text style={styles.sectionTitle}>{t('note_label')}</Text>
         <TextInput
           value={note}
           onChangeText={setNote}
-          placeholder="مثال: مرتفع جداً، غير مرئي ليلاً..."
+          placeholder={t('note_placeholder')}
           multiline
           style={styles.textArea}
           placeholderTextColor="#9CA3AF"
@@ -137,7 +150,7 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
           activeOpacity={0.8}
         >
           <Text style={styles.submitButtonText}>
-            {submitting ? 'جاري الإرسال...' : 'حفظ الخطر'}
+            {submitting ? t('sending_btn') : t('submit_btn')}
           </Text>
         </TouchableOpacity>
 
@@ -149,14 +162,14 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
           disabled={submitting}
           activeOpacity={0.8}
         >
-          <Text style={styles.cancelButtonText}>إلغاء</Text>
+          <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
         </TouchableOpacity>
       </View>
     </ActionSheet>
   );
 };
 
-const makeStyles = (theme: AppTheme) =>
+const makeStyles = (theme: AppTheme, isRTL: boolean) =>
   StyleSheet.create({
     sheetContainer: {
       backgroundColor: theme.colors.background,
@@ -181,13 +194,13 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 17,
       fontWeight: '600',
       color: theme.colors.text,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
     sheetSubtitle: {
       marginTop: 4,
       fontSize: 12,
       color: theme.colors.textMuted,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
     sheetSubtitleMono: {
       fontFamily: Platform.select({
@@ -207,11 +220,11 @@ const makeStyles = (theme: AppTheme) =>
       fontSize: 13,
       marginBottom: 6,
       color: theme.colors.text,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     inlineLoader: {
-      flexDirection: 'row-reverse',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       marginBottom: 6,
       gap: 6,
@@ -222,7 +235,7 @@ const makeStyles = (theme: AppTheme) =>
     },
 
     chipRow: {
-      flexDirection: 'row-reverse',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       flexWrap: 'wrap',
       gap: 8,
     },
@@ -261,7 +274,7 @@ const makeStyles = (theme: AppTheme) =>
       textAlignVertical: 'top',
       fontSize: 14,
       color: theme.colors.text,
-      textAlign: 'right',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     sheetButtons: {
