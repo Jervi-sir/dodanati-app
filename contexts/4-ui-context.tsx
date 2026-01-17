@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useRef, useState } from 'react';
 
-export type SnackbarState = {
+type SnackbarState = {
   visible: boolean;
   message: string;
   ctaLabel?: string;

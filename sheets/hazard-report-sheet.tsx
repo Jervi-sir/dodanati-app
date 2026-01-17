@@ -65,7 +65,7 @@ export const HazardReportSheet: React.FC<SheetProps> = (props) => {
         <Text style={styles.sheetSubtitle}>
           {t('location')}&nbsp;
           <Text style={styles.sheetSubtitleMono}>
-            {region.latitude.toFixed(5)}, {region.longitude.toFixed(5)}
+            {region?.latitude.toFixed(5)}, {region?.longitude.toFixed(5)}
           </Text>
         </Text>
       </View>

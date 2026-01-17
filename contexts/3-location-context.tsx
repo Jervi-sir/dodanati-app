@@ -1,287 +1,345 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Alert, Platform } from 'react-native';
-import * as Location from 'expo-location';
-import MapView, { Region } from 'react-native-maps';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, } from "react";
+import { Alert } from "react-native";
+import * as Location from "expo-location";
+import MapView, { Region } from "react-native-maps";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const DEFAULT_LAT = 36.7525;
-const DEFAULT_LNG = 3.04197;
-
-export type MapProviderKind = 'system' | 'google';
+export type MapProviderKind = "system" | "google";
 
 type LocationContextType = {
   locationLoading: boolean;
+
   currentLat: number | null;
   currentLng: number | null;
-  region: Region;
+
+  // can be null until we get first location
+  region: Region | null;
   setRegion: (r: Region) => void;
+
   recenterOnUser: (zoom?: number) => void;
   mapRef: React.RefObject<MapView | null>;
+
   mapProvider: MapProviderKind;
   setMapProvider: (p: MapProviderKind) => void;
+
   isSimulatingLocation: boolean;
   toggleSimulationMode: () => void;
   simulateLocation: (lat: number, lng: number) => void;
 
-  /** 0..360 degrees */
   currentHeading: number;
   setCurrentHeading: (h: number) => void;
 
   showMapLabels: boolean;
   setShowMapLabels: (show: boolean) => void;
-
 };
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
 
 export const useLocation = () => {
   const ctx = useContext(LocationContext);
-  if (!ctx) throw new Error('useLocation must be used within <LocationProvider>');
+  if (!ctx) throw new Error("useLocation must be used within <LocationProvider>");
   return ctx;
 };
 
+const clamp360 = (n: number) => ((n % 360) + 360) % 360;
+
+const smoothAngle = (prev: number, next: number, alpha: number) => {
+  let diff = next - prev;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+  return clamp360(prev + diff * alpha);
+};
+
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const mapRef = useRef<MapView>(null);
+
   const [locationLoading, setLocationLoading] = useState(true);
+
   const [currentLat, setCurrentLat] = useState<number | null>(null);
   const [currentLng, setCurrentLng] = useState<number | null>(null);
 
-  // ✅ heading is ALWAYS a number (0..360)
-  const [currentHeading, setCurrentHeading] = useState<number>(0);
+  const latRef = useRef<number | null>(null);
+  const lngRef = useRef<number | null>(null);
 
-  const [mapProvider, setMapProvider] = useState<MapProviderKind>('google');
+  // starts null (no hardcode)
+  const [region, _setRegion] = useState<Region | null>(null);
+  const regionRef = useRef<Region | null>(null);
+
+  const setRegion = useCallback((r: Region) => {
+    regionRef.current = r;
+    _setRegion(r);
+  }, []);
+
+  const [currentHeading, setCurrentHeading] = useState(0);
+  const headingRef = useRef(0);
+
   const [isSimulatingLocation, setIsSimulatingLocation] = useState(false);
+  const isSimulatingRef = useRef(false);
+  const hasCenteredRef = useRef(false);
 
-  const [region, setRegion] = useState<Region>({
-    latitude: DEFAULT_LAT,
-    longitude: DEFAULT_LNG,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-  });
+  const positionSubRef = useRef<Location.LocationSubscription | null>(null);
+  const headingSubRef = useRef<Location.LocationSubscription | null>(null);
 
-  const mapRef = useRef<MapView>(null);
-  const isSimulatingRef = useRef(isSimulatingLocation);
+  const [mapProvider, setMapProviderState] = useState<MapProviderKind>("google");
+  const [showMapLabels, setShowMapLabelsState] = useState(true);
 
-  useEffect(() => {
-    isSimulatingRef.current = isSimulatingLocation;
-  }, [isSimulatingLocation]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const stored = await AsyncStorage.getItem('mapProvider');
-        if (stored && (stored === 'system' || stored === 'google')) {
-          setMapProvider(stored as MapProviderKind);
-        }
-      } catch { }
-    })();
+  const stopWatchers = useCallback(() => {
+    positionSubRef.current?.remove();
+    positionSubRef.current = null;
+    headingSubRef.current?.remove();
+    headingSubRef.current = null;
   }, []);
 
-  const updateMapProvider = async (next: MapProviderKind) => {
-    setMapProvider(next);
-    try {
-      await AsyncStorage.setItem('mapProvider', next);
-    } catch { }
-  };
-
-  const [showMapLabels, setShowMapLabels] = useState(true);
-
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const storedLabels = await AsyncStorage.getItem('mapShowLabels');
-        if (storedLabels !== null) {
-          setShowMapLabels(JSON.parse(storedLabels));
-        }
-      } catch { }
-    })();
-  }, []);
-
-  const updateShowMapLabels = async (show: boolean) => {
-    setShowMapLabels(show);
-    try {
-      await AsyncStorage.setItem('mapShowLabels', JSON.stringify(show));
-    } catch { }
-  };
-
-  const toggleSimulationMode = () => setIsSimulatingLocation((v) => !v);
-
-  const simulateLocation = (lat: number, lng: number) => {
+  const applyCoords = useCallback((lat: number, lng: number) => {
+    latRef.current = lat;
+    lngRef.current = lng;
     setCurrentLat(lat);
     setCurrentLng(lng);
-  };
-
-  // ✅ Smooth heading changes (prevents jitter + handles 359->0 wrap)
-  const headingRef = useRef(0);
-  const smoothHeading = (next: number) => {
-    const prev = headingRef.current;
-    const alpha = 0.25; // 0.15 smoother, 0.35 more reactive
-
-    let diff = next - prev;
-    if (diff > 180) diff -= 360;
-    if (diff < -180) diff += 360;
-
-    const smoothed = prev + diff * alpha;
-    const normalized = (smoothed + 360) % 360;
-
-    headingRef.current = normalized;
-    return normalized;
-  };
-
-  useEffect(() => {
-    let positionSub: Location.LocationSubscription | null = null;
-    let headingSub: Location.LocationSubscription | null = null;
-
-    const startLocationTracking = async () => {
-      let hasCentered = false;
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Location', 'Permission rejetée.');
-          setLocationLoading(false);
-          return;
-        }
-
-        // ✅ Compass heading (updates even when standing still)
-        try {
-          headingSub = await Location.watchHeadingAsync((h) => {
-            if (isSimulatingRef.current) return;
-
-            const raw =
-              Number.isFinite(h.trueHeading) && h.trueHeading >= 0
-                ? h.trueHeading
-                : h.magHeading;
-
-            if (Number.isFinite(raw)) {
-              setCurrentHeading(smoothHeading(raw));
-            }
-          });
-        } catch (e) {
-          console.warn('watchHeadingAsync not available', e);
-        }
-
-        // 1. Try Last Known Position (Instant)
-        try {
-          const lastKnown = await Location.getLastKnownPositionAsync({});
-          if (lastKnown && !isSimulatingRef.current) {
-            const { latitude, longitude } = lastKnown.coords;
-            setCurrentLat(latitude);
-            setCurrentLng(longitude);
-
-            const newRegion = {
-              latitude,
-              longitude,
-              latitudeDelta: 0.03,
-              longitudeDelta: 0.03,
-            };
-            setRegion(newRegion);
-            // Try explicit animation
-            mapRef.current?.animateToRegion(newRegion, 100);
-
-            hasCentered = true;
-            setLocationLoading(false);
-          }
-        } catch (e) {
-          console.log("No last known location");
-        }
-
-        // 2. Start watching position (Stream)
-        // This handles "current" location updates. We don't need to await getCurrentPositionAsync
-        // blocking the stream. If we didn't get lastKnown, this will eventually trigger and set coords.
-        positionSub = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 2000,
-            distanceInterval: 10,
-          },
-          (loc) => {
-            if (!isSimulatingRef.current) {
-              const { latitude, longitude } = loc.coords;
-              setCurrentLat(latitude);
-              setCurrentLng(longitude);
-
-              if (!hasCentered) {
-                const newRegion = {
-                  latitude,
-                  longitude,
-                  latitudeDelta: 0.03,
-                  longitudeDelta: 0.03,
-                };
-                setRegion(newRegion);
-                mapRef.current?.animateToRegion(newRegion, 500);
-                hasCentered = true;
-              }
-
-              // Ensure loading is off once we get *live* data
-              setLocationLoading(false);
-            }
-          }
-        );
-
-        // Optional: Force a single high-accuracy update in parallel if needed, 
-        // but watchPositionAsync normally fires immediately.
-
-      } catch (err) {
-        console.error('Location error', err);
-        setLocationLoading(false);
-      }
-    };
-
-    startLocationTracking();
-
-    return () => {
-      positionSub?.remove();
-      headingSub?.remove();
-    };
   }, []);
 
-  const recenterOnUser = useCallback((zoom?: number) => {
-    if (currentLat == null || currentLng == null) return;
+  const centerOnce = useCallback((lat: number, lng: number, duration: number) => {
+    if (hasCenteredRef.current) return;
 
-    const newRegion: Region = {
-      latitude: currentLat,
-      longitude: currentLng,
+    const r: Region = {
+      latitude: lat,
+      longitude: lng,
       latitudeDelta: 0.03,
       longitudeDelta: 0.03,
     };
 
-    setRegion(newRegion);
+    setRegion(r);
+    mapRef.current?.animateToRegion(r, duration);
+    hasCenteredRef.current = true;
+  }, [setRegion]);
 
+  const recenterOnUser = useCallback((zoom?: number) => {
+    const lat = latRef.current;
+    const lng = lngRef.current;
+    if (lat == null || lng == null) return;
+
+    const r: Region = {
+      latitude: lat,
+      longitude: lng,
+      latitudeDelta: 0.03,
+      longitudeDelta: 0.03,
+    };
+
+    setRegion(r);
     mapRef.current?.animateCamera(
-      {
-        center: {
-          latitude: currentLat,
-          longitude: currentLng,
-        },
-        zoom: zoom || 17,
-      },
+      { center: { latitude: lat, longitude: lng }, zoom: zoom ?? 17 },
       { duration: 500 }
     );
-  }, [currentLat, currentLng]);
+  }, [setRegion]);
 
-  return (
-    <LocationContext.Provider
-      value={{
-        locationLoading,
-        currentLat,
-        currentLng,
-        region,
-        setRegion,
-        recenterOnUser,
-        mapRef,
-        mapProvider,
-        setMapProvider: updateMapProvider,
-        isSimulatingLocation,
-        toggleSimulationMode,
-        simulateLocation,
-        currentHeading,
-        setCurrentHeading,
-        showMapLabels,
-        setShowMapLabels: updateShowMapLabels,
+  const toggleSimulationMode = useCallback(() => {
+    setIsSimulatingLocation((v) => !v);
+  }, []);
 
-      }}
-    >
-      {children}
-    </LocationContext.Provider>
+  const simulateLocation = useCallback(
+    (lat: number, lng: number) => {
+      setIsSimulatingLocation(true);
+      isSimulatingRef.current = true;
+      stopWatchers();
+
+      applyCoords(lat, lng);
+
+      const r: Region = {
+        latitude: lat,
+        longitude: lng,
+        latitudeDelta: 0.03,
+        longitudeDelta: 0.03,
+      };
+      setRegion(r);
+      mapRef.current?.animateToRegion(r, 350);
+
+      hasCenteredRef.current = true;
+      setLocationLoading(false);
+    },
+    [applyCoords, stopWatchers, setRegion]
   );
+
+  // Persisted settings: keep simple (no extra effects beyond 1 main init)
+  const setMapProvider = useCallback(async (p: MapProviderKind) => {
+    setMapProviderState(p);
+    try {
+      await AsyncStorage.setItem("mapProvider", p);
+    } catch { }
+  }, []);
+
+  const setShowMapLabels = useCallback(async (show: boolean) => {
+    setShowMapLabelsState(show);
+    try {
+      await AsyncStorage.setItem("mapShowLabels", JSON.stringify(show));
+    } catch { }
+  }, []);
+
+  // ✅ ONE effect: load settings + ask permission + seed lastKnown + start watchers + cleanup
+  useEffect(() => {
+    let cancelled = false;
+
+    const start = async () => {
+      try {
+        // load persisted settings (optional, but cheap)
+        try {
+          const [storedProvider, storedLabels] = await Promise.all([
+            AsyncStorage.getItem("mapProvider"),
+            AsyncStorage.getItem("mapShowLabels"),
+          ]);
+
+          if (!cancelled && (storedProvider === "system" || storedProvider === "google")) {
+            setMapProviderState(storedProvider);
+          }
+          if (!cancelled && storedLabels != null) {
+            setShowMapLabelsState(JSON.parse(storedLabels));
+          }
+        } catch { }
+
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (cancelled) return;
+
+        if (status !== "granted") {
+          Alert.alert("Location", "Permission rejetée.");
+          setLocationLoading(false);
+          return;
+        }
+
+        // seed with last known (fast), but don’t hardcode if missing
+        try {
+          const lastKnown = await Location.getLastKnownPositionAsync({});
+          if (!cancelled && lastKnown && !isSimulatingRef.current) {
+            const { latitude, longitude } = lastKnown.coords;
+            applyCoords(latitude, longitude);
+            centerOnce(latitude, longitude, 120);
+            setLocationLoading(false);
+          }
+        } catch { }
+
+        // start watchers
+        stopWatchers();
+
+        // heading (throttled + smoothed)
+        try {
+          let lastTs = 0;
+          headingSubRef.current = await Location.watchHeadingAsync((h) => {
+            if (cancelled || isSimulatingRef.current) return;
+
+            const raw =
+              Number.isFinite(h.trueHeading) && h.trueHeading >= 0 ? h.trueHeading : h.magHeading;
+
+            if (!Number.isFinite(raw)) return;
+
+            const now = Date.now();
+            if (now - lastTs < 100) return; // 10 fps
+            lastTs = now;
+
+            const smoothed = smoothAngle(headingRef.current, raw, 0.22);
+            headingRef.current = smoothed;
+            setCurrentHeading(smoothed);
+          });
+        } catch { }
+
+        positionSubRef.current = await Location.watchPositionAsync(
+          {
+            // Balanced is often more “stable” than High in real life cities
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 2000,
+            distanceInterval: 10,
+          },
+          (loc) => {
+            if (cancelled || isSimulatingRef.current) return;
+
+            const { latitude, longitude } = loc.coords;
+            applyCoords(latitude, longitude);
+
+            // Auto-recenter if out of viewport (Soft Follow)
+            const r = regionRef.current;
+            if (r && hasCenteredRef.current) {
+              const dLat = Math.abs(latitude - r.latitude);
+              const dLng = Math.abs(longitude - r.longitude);
+              // If user is > 45% of the way to the edge (conservative "in viewport" check)
+              const isOutOfView = dLat > (r.latitudeDelta / 2) * 0.90 || dLng > (r.longitudeDelta / 2) * 0.90;
+
+              if (isOutOfView) {
+                const newRegion: Region = {
+                  ...r,
+                  latitude,
+                  longitude,
+                };
+                setRegion(newRegion); // Use setRegion to update both state and ref
+                mapRef.current?.animateToRegion(newRegion, 450);
+              }
+            }
+
+            centerOnce(latitude, longitude, 450);
+            setLocationLoading(false);
+          }
+        );
+      } catch (err) {
+        console.error("Location error", err);
+        setLocationLoading(false);
+      }
+    };
+
+    start();
+
+    return () => {
+      cancelled = true;
+      stopWatchers();
+    };
+  }, [applyCoords, centerOnce, stopWatchers, setRegion]);
+
+  // keep sim ref synced (no extra effect needed; do it inline)
+  const setSimulating = useCallback((v: boolean) => {
+    isSimulatingRef.current = v;
+    setIsSimulatingLocation(v);
+  }, []);
+
+  // override toggle to keep ref synced
+  const toggleSimulationModeStable = useCallback(() => {
+    setSimulating(!isSimulatingRef.current);
+    if (isSimulatingRef.current) {
+      stopWatchers();
+    }
+    // when leaving sim mode, simplest is app restart or manual recenter;
+    // if you want auto resume watchers, I can add it without extra effects.
+  }, [setSimulating, stopWatchers]);
+
+  const value = useMemo<LocationContextType>(
+    () => ({
+      locationLoading,
+      currentLat,
+      currentLng,
+      region,
+      setRegion,
+      recenterOnUser,
+      mapRef,
+      mapProvider,
+      setMapProvider,
+      isSimulatingLocation,
+      toggleSimulationMode: toggleSimulationModeStable,
+      simulateLocation,
+      currentHeading,
+      setCurrentHeading,
+      showMapLabels,
+      setShowMapLabels,
+    }),
+    [
+      locationLoading,
+      currentLat,
+      currentLng,
+      region,
+      setRegion,
+      recenterOnUser,
+      mapProvider,
+      setMapProvider,
+      isSimulatingLocation,
+      toggleSimulationModeStable,
+      simulateLocation,
+      currentHeading,
+      showMapLabels,
+      setShowMapLabels,
+    ]
+  );
+
+  return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;
 };

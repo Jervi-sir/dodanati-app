@@ -62,7 +62,7 @@ export const RouteSummarySection = ({ routeLoading, routeSummary, onQuit }: Prop
     <View style={styles.routeSummaryCard}>
       <TouchableOpacity
         onPress={onQuit}
-        style={styles.quitButton}
+        style={[styles.quitButton, isRTL ? { left: 10 } : { right: 10 }]}
         activeOpacity={0.7}
         hitSlop={{ top: 10, left: 30, right: 10, bottom: 30 }}
       >
@@ -142,7 +142,6 @@ const makeStyles = (theme: AppTheme, isRTL: boolean) =>
     quitButton: {
       position: 'absolute',
       top: 6,
-      left: 6,
       width: 24,
       height: 24,
       borderRadius: 12,

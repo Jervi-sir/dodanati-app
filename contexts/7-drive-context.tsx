@@ -1,12 +1,11 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
-import * as Speech from 'expo-speech';
-import { useKeepAwake } from 'expo-keep-awake';
-import * as Location from 'expo-location';
-import { getDistance, getRhumbLineBearing } from 'geolib';
-import { useHazards } from './5-hazard-context';
-import { useLocation } from './3-location-context';
-import { ALERT_DISTANCE_METERS, SPEECH_COOLDOWN_MS } from '@/utils/const/app-constants';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Alert } from "react-native";
+import * as Speech from "expo-speech";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
+import { getDistance, getRhumbLineBearing } from "geolib";
+import { useHazards } from "./5-hazard-context";
+import { useLocation } from "./3-location-context";
+import { ALERT_DISTANCE_METERS, SPEECH_COOLDOWN_MS } from "@/utils/const/app-constants";
 
 type DriveContextType = {
   isDriveMode: boolean;
@@ -19,174 +18,247 @@ const DriveContext = createContext<DriveContextType | undefined>(undefined);
 
 export const useDrive = () => {
   const ctx = useContext(DriveContext);
-  if (!ctx) throw new Error('useDrive must be used within <DriveProvider>');
+  if (!ctx) throw new Error("useDrive must be used within <DriveProvider>");
   return ctx;
 };
 
+const clamp360 = (n: number) => ((n % 360) + 360) % 360;
 
 export const DriveProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { mapRef, currentLat, currentLng, locationLoading } = useLocation();
+  const { mapRef, currentLat, currentLng, currentHeading, locationLoading } = useLocation();
   const { hazards } = useHazards();
 
   const [isDriveMode, setIsDriveMode] = useState(false);
 
-  // Use a ref for hazards to access latest inside intervals/subscriptions without dependency hell
+  // latest hazards without dependency hell
   const hazardsRef = useRef(hazards);
-  useEffect(() => { hazardsRef.current = hazards; }, [hazards]);
+  useEffect(() => {
+    hazardsRef.current = hazards;
+  }, [hazards]);
 
+  // speech throttles
   const lastSpeechTime = useRef<Record<number, number>>({});
   const lastGlobalSpeechTime = useRef<number>(0);
-  const locationSubscription = useRef<Location.LocationSubscription | null>(null);
 
-  useKeepAwake(); // This hook technically enables it globally if component mounted, but we might want conditional.
+  // “approaching” logic per hazard: last seen distance
+  const lastDistRef = useRef<Record<number, number>>({});
 
-  const startDrive = async () => {
+  // throttle hazard checks even if GPS updates faster
+  const lastCheckTsRef = useRef(0);
+
+  // enable keep-awake only while drive mode
+  useEffect(() => {
+    if (!isDriveMode) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await activateKeepAwakeAsync();
+      } catch (e) {
+        if (!cancelled) console.warn("KeepAwake activate failed", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      try {
+        deactivateKeepAwake();
+      } catch { }
+    };
+  }, [isDriveMode]);
+
+  const stopDrive = useCallback(() => {
+    setIsDriveMode(false);
+    Speech.stop();
+
+    // reset camera to standard
+    if (currentLat != null && currentLng != null) {
+      mapRef.current?.animateCamera(
+        {
+          center: { latitude: currentLat, longitude: currentLng },
+          pitch: 0,
+          heading: 0,
+          zoom: 15,
+        },
+        { duration: 700 }
+      );
+    }
+  }, [currentLat, currentLng, mapRef]);
+
+  const startDrive = useCallback(() => {
+    if (locationLoading) {
+      Alert.alert("Info", "Localisation en cours… Réessayez dans un instant.");
+      return;
+    }
+    if (currentLat == null || currentLng == null) {
+      Alert.alert("Info", "Position non disponible.");
+      return;
+    }
+
+    // reset per-session state
+    lastGlobalSpeechTime.current = 0;
+    lastSpeechTime.current = {};
+    lastDistRef.current = {};
+    lastCheckTsRef.current = 0;
+
     setIsDriveMode(true);
 
-    // Switch to high accuracy location tracking
-    try {
-      if (locationSubscription.current) locationSubscription.current.remove();
-
-      locationSubscription.current = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.BestForNavigation,
-          timeInterval: 1000,
-          distanceInterval: 10,
-        },
-        (loc) => {
-          const { latitude, longitude, heading, speed } = loc.coords;
-
-
-          // Filter out stationary drift
-          // If speed is very low (< 1 m/s which is 3.6 km/h) or negative (invalid), ignore for camera updates
-          // This prevents the map from spinning or drifting when stopped at a light or standing still.
-          const isMoving = speed !== null && speed > 1.0;
-
-          if (isMoving) {
-            const validHeading = (heading && heading >= 0) ? heading : 0;
-
-            // Update Map Camera
-            // We want to tilt and follow
-            mapRef.current?.animateCamera({
-              center: { latitude, longitude },
-              pitch: 60,
-              heading: validHeading,
-              zoom: 18, // Close up
-            }, { duration: 1000 });
-          }
-
-          // We pass heading only if moving, otherwise null to minimize false positives from "random" phone rotations while stopped.
-          checkForHazards(latitude, longitude, isMoving ? (heading || 0) : null);
-        }
-      );
-    } catch (e) {
-      console.error('Failed to start drive tracking', e);
-      Alert.alert('Erreur', 'Impossible de lancer le mode conduite.');
-      setIsDriveMode(false);
-    }
-  };
-
-  const stopDrive = () => {
-    setIsDriveMode(false);
-    Speech.stop(); // Stop speaking immediately
-    if (locationSubscription.current) {
-      locationSubscription.current.remove();
-      locationSubscription.current = null;
-    }
-
-    // Reset camera to standard top-down
-    if (currentLat && currentLng) {
-      mapRef.current?.animateCamera({
+    // snap camera immediately
+    mapRef.current?.animateCamera(
+      {
         center: { latitude: currentLat, longitude: currentLng },
-        pitch: 0,
-        heading: 0,
-        zoom: 15,
-      }, { duration: 1000 });
-    }
-  };
+        pitch: 60,
+        heading: currentHeading ?? 0,
+        zoom: 18,
+      },
+      { duration: 500 }
+    );
+  }, [locationLoading, currentLat, currentLng, currentHeading, mapRef]);
 
-  const toggleDriveMode = () => {
-    if (isDriveMode) stopDrive();
-    else startDrive();
-  };
+  const toggleDriveMode = useCallback(() => {
+    setIsDriveMode((v) => {
+      const next = !v;
+      if (!next) {
+        // turning off
+        Speech.stop();
+      }
+      return next;
+    });
+  }, []);
 
-  const checkForHazards = (lat: number, lng: number, heading: number | null) => {
-    const list = hazardsRef.current;
+  const speakHazard = useCallback((type: string, distMeters: number) => {
+    const rounded = Math.round(distMeters / 10) * 10;
+    Speech.stop(); // prevent stacking
+    Speech.speak(`Attention, ${type} dans ${rounded} mètres.`, { language: "fr", rate: 1.05 });
+  }, []);
 
-    // Sort logic to prioritize closest could be here, but simple iteration is fine for now
-    // We rely on small batches or the fact that loop order is somewhat arbitrary but consistent
+  const checkForHazards = useCallback(
+    (lat: number, lng: number, heading: number) => {
+      const now = Date.now();
 
-    for (const hazard of list) {
-      const dist = getDistance(
-        { latitude: lat, longitude: lng },
-        { latitude: hazard.lat, longitude: hazard.lng }
-      );
+      // throttle checks to ~1.4 fps (tune as you like)
+      if (now - lastCheckTsRef.current < 700) return;
+      lastCheckTsRef.current = now;
 
-      if (dist < ALERT_DISTANCE_METERS) {
-        const now = Date.now();
+      // global throttle (avoid spam)
+      if (now - lastGlobalSpeechTime.current < 3000) return;
 
-        // 1. Global throttle (prevent spamming)
-        // Wait at least 3 seconds between ANY speech
-        if (now - lastGlobalSpeechTime.current < 3000) {
-          continue;
-        }
+      const list = hazardsRef.current;
+      if (!list || list.length === 0) return;
 
-        // 2. Specific Hazard Cooldown
-        if (lastSpeechTime.current[hazard.id] && now - lastSpeechTime.current[hazard.id] < SPEECH_COOLDOWN_MS) {
-          continue;
-        }
+      let best: { hazardId: number; dist: number; type: string } | null = null;
 
-        // Optional: Check if it's "ahead" of us using bearing
-        // Simple check: is the bearing to the hazard similar to our heading?
-        // This prevents alerting for hazards behind us.
-        let relevant = true;
-        if (heading !== null && heading >= 0) {
-          const bearingToHazard = getRhumbLineBearing(
+      for (const hazard of list) {
+        if (!hazard.is_active) continue;
+
+        // quick reject: only consider hazards within alert radius
+        const dist = getDistance(
+          { latitude: lat, longitude: lng },
+          { latitude: hazard.lat, longitude: hazard.lng }
+        );
+
+        if (dist > ALERT_DISTANCE_METERS) continue;
+
+        // per-hazard cooldown
+        const lastSpoke = lastSpeechTime.current[hazard.id];
+        if (lastSpoke && now - lastSpoke < SPEECH_COOLDOWN_MS) continue;
+
+        // “ahead” check (FOV)
+        const bearingTo = clamp360(
+          getRhumbLineBearing(
             { latitude: lat, longitude: lng },
             { latitude: hazard.lat, longitude: hazard.lng }
-          );
+          )
+        );
 
-          // diff should be within +/- 45 degrees (Field of View ~90)
-          let diff = Math.abs(bearingToHazard - heading);
-          if (diff > 180) diff = 360 - diff;
+        let diff = Math.abs(bearingTo - clamp360(heading));
+        if (diff > 180) diff = 360 - diff;
+        if (diff > 55) continue; // ~110° cone in front; tune 45..70
 
-          if (diff > 45) relevant = false;
-        }
+        // “approaching” check: only warn if distance is decreasing
+        const prevDist = lastDistRef.current[hazard.id];
+        lastDistRef.current[hazard.id] = dist;
 
-        if (relevant) {
-          // Speak!
-          const type = hazard.category?.name_fr || 'Danger';
-          const distanceRounded = Math.round(dist / 10) * 10;
+        // if we have a previous sample and we're not getting closer, skip
+        if (prevDist != null && dist > prevDist + 5) continue; // +5m tolerance for GPS noise
 
-          Speech.speak(`Attention, ${type} dans ${distanceRounded} mètres.`, {
-            language: 'fr',
-            rate: 1.1
-          });
-
-          lastSpeechTime.current[hazard.id] = now;
-          lastGlobalSpeechTime.current = now;
-
-          // Break loop? 
-          // If we speak, we should probably stop checking *other* hazards for this exact tick, 
-          // because we just triggered the global throttle.
-          // This ensures we only queue ONE message per tick (per 3s effectively).
-          break;
+        const type = hazard.category?.name_fr || "Danger";
+        if (!best || dist < best.dist) {
+          best = { hazardId: hazard.id, dist, type };
         }
       }
-    }
-  };
 
-  // Cleanup
+      if (best) {
+        speakHazard(best.type, best.dist);
+        lastSpeechTime.current[best.hazardId] = now;
+        lastGlobalSpeechTime.current = now;
+      }
+    },
+    [speakHazard]
+  );
+
+  // ✅ Drive loop: react to existing location/heading updates (no new GPS watcher)
+  useEffect(() => {
+    if (!isDriveMode) return;
+    if (currentLat == null || currentLng == null) return;
+
+    // camera follow (only when driving)
+    mapRef.current?.animateCamera(
+      {
+        center: { latitude: currentLat, longitude: currentLng },
+        pitch: 60,
+        heading: currentHeading ?? 0,
+        zoom: 18,
+      },
+      { duration: 700 }
+    );
+
+    // hazard checks
+    checkForHazards(currentLat, currentLng, currentHeading ?? 0);
+  }, [isDriveMode, currentLat, currentLng, currentHeading, mapRef, checkForHazards]);
+
+  // if user toggles off via toggleDriveMode state update, ensure cleanup camera, etc.
+  useEffect(() => {
+    if (!isDriveMode) {
+      // when leaving drive mode (including unmount)
+      // don't alert; just reset
+      if (currentLat != null && currentLng != null) {
+        mapRef.current?.animateCamera(
+          {
+            center: { latitude: currentLat, longitude: currentLng },
+            pitch: 0,
+            heading: 0,
+            zoom: 15,
+          },
+          { duration: 700 }
+        );
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDriveMode]);
+
+  // full cleanup
   useEffect(() => {
     return () => {
-      if (locationSubscription.current) locationSubscription.current.remove();
       Speech.stop();
+      try {
+        deactivateKeepAwake();
+      } catch { }
     };
   }, []);
 
-  return (
-    <DriveContext.Provider value={{ isDriveMode, toggleDriveMode, startDrive, stopDrive }}>
-      {children}
-    </DriveContext.Provider>
+  const ctxValue = useMemo(
+    () => ({
+      isDriveMode,
+      toggleDriveMode: () => {
+        if (isDriveMode) stopDrive();
+        else startDrive();
+      },
+      startDrive,
+      stopDrive,
+    }),
+    [isDriveMode, startDrive, stopDrive]
   );
+
+  return <DriveContext.Provider value={ctxValue}>{children}</DriveContext.Provider>;
 };

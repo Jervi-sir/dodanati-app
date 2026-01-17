@@ -1,12 +1,5 @@
-// src/theme/theme.tsx
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
-import { Appearance, ColorSchemeName, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useState, } from 'react';
+import { Appearance, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'app_theme_mode';
@@ -29,7 +22,7 @@ export type AppTheme = {
   };
 };
 
-export const lightTheme: AppTheme = {
+const lightTheme: AppTheme = {
   mode: 'light',
   colors: {
     background: '#F9FAFB',
@@ -45,7 +38,7 @@ export const lightTheme: AppTheme = {
   },
 };
 
-export const darkTheme: AppTheme = {
+const darkTheme: AppTheme = {
   mode: 'dark',
   colors: {
     background: '#020617', // slate-950-ish
@@ -137,53 +130,3 @@ export const useTheme = () => {
   return ctx;
 };
 
-const styles = StyleSheet.create({
-  switcher: {
-    width: 120,
-    height: 34,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  switcherThumb: {
-    position: 'absolute',
-    width: 56,
-    height: 26,
-    borderRadius: 999,
-    top: 3,
-  },
-  switcherThumbLeft: {
-    left: 4,
-  },
-  switcherThumbRight: {
-    right: 4,
-  },
-  switcherLabels: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-  },
-  switcherLabel: {
-    fontSize: 12,
-  },
-
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  iconButtonText: {
-    fontSize: 18,
-    color: '#F9FAFB',
-  },
-});

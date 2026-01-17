@@ -7,8 +7,17 @@ type CreateOpts = {
   requiresAuth?: boolean; // default behavior for this instance
 };
 
-// token lives in this module (no zustand import)
+// Token lives in this module (no zustand import)
 let currentToken: string | null = null;
+
+// Simple usage tracking
+let bytesReceived = 0;
+let bytesSent = 0;
+
+export const getNetworkStats = () => ({
+  received: bytesReceived,
+  sent: bytesSent,
+});
 
 export function createAxiosInstance(opts: CreateOpts = {}) {
   const { baseURL = BASE_URL, requiresAuth = true } = opts;
@@ -24,6 +33,14 @@ export function createAxiosInstance(opts: CreateOpts = {}) {
 
   // Attach bearer only if needed
   instance.interceptors.request.use((config) => {
+    // Track estimated upload size
+    if (config.data) {
+      try {
+        const str = JSON.stringify(config.data);
+        bytesSent += str.length;
+      } catch (e) { }
+    }
+
     let needsAuth = requiresAuth;
     const h: any = config.headers || {};
     if (h['X-Requires-Auth'] !== undefined) {
@@ -39,7 +56,16 @@ export function createAxiosInstance(opts: CreateOpts = {}) {
   });
 
   instance.interceptors.response.use(
-    (res) => res,
+    (res) => {
+      // Track estimated download size
+      if (res.data) {
+        try {
+          const str = JSON.stringify(res.data);
+          bytesReceived += str.length;
+        } catch (e) { }
+      }
+      return res;
+    },
     (error) => {
       // Optional: handle 401s globally
       // if (error?.response?.status === 401) { /* maybe clear token */ }

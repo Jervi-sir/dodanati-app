@@ -1,6 +1,4 @@
-import { RoadHazardCategoryTaxonomyItem } from "@/contexts/5-hazard-context";
-
-export const FALLBACK_CATEGORIES: RoadHazardCategoryTaxonomyItem[] = [
+export const FALLBACK_CATEGORIES = [
   {
     id: 2,
     slug: 'pothole',

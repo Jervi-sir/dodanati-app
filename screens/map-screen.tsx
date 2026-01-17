@@ -1,20 +1,20 @@
 // src/screens/MapScreen.tsx
-import React, { useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { StatusBar } from 'expo-status-bar';
-import { HazardCluster, RoadHazard, useHazards } from '@/contexts/5-hazard-context';
+import { RoadHazard, useHazards } from '@/contexts/5-hazard-context';
 import { useDevice } from '@/contexts/2-device-context';
 import { useLocation } from '@/contexts/3-location-context';
 import { RouteSummary, useRoute } from '@/contexts/6-route-context';
 import { useUI } from '@/contexts/4-ui-context';
-import { ActionFloatingTools } from './components/action-floating-tools';
-import { HazardMarker } from './components/hazard-marker';
-import { SnackbarBanner } from './components/snackbar-banner';
+import { ActionFloatingTools } from '@/components/action-floating-tools';
+import { HazardMarker } from '@/components/hazard-marker';
+import { SnackbarBanner } from '@/components/snackbar-banner';
 import { AppTheme, useTheme } from '@/contexts/1-theme-context';
 import { SheetManager } from 'react-native-actions-sheet';
-import { LocationPuck } from '@/assets/icons/location-puck';
 import { useTrans } from '@/hooks/use-trans';
+import { ConsumptionStats } from '@/components/consumption-stats';
 
 // ALGERIA_GEOJSON import removed
 
@@ -167,27 +167,38 @@ export const MapScreen = () => {
   );
 
   /* ----------------------- Points -> Client clusters ----------------------- */
+  const regionKey = useMemo(() => {
+    if (!region) return "none";
+    // rounding reduces recompute from tiny float noise
+    return [
+      region.latitude.toFixed(4),
+      region.longitude.toFixed(4),
+      region.latitudeDelta.toFixed(4),
+      region.longitudeDelta.toFixed(4),
+    ].join("|");
+  }, [region?.latitude, region?.longitude, region?.latitudeDelta, region?.longitudeDelta]);
+
   const clusteredFromPoints = useMemo(() => {
-    if (hazardMode !== 'points') return { clusters: [] as ClientCluster[], singles: [] as RoadHazard[] };
+    if (!region || hazardMode !== "points") {
+      return { clusters: [] as ClientCluster[], singles: [] as RoadHazard[] };
+    }
 
     const visual = clusterHazardsClientSide({
       hazards,
       region,
       mapWidthPx: MAP_WIDTH,
-      cellSizePx: 56, // tweak: 44..72 (bigger => more grouping)
+      cellSizePx: 56,
     });
 
-    // Split: clusters (count>1) + singles (count===1)
     const singleIds = new Set<number>();
-    for (const c of visual) {
-      if (c.count === 1 && c.ids[0] != null) singleIds.add(c.ids[0]);
-    }
+    for (const c of visual) if (c.count === 1 && c.ids[0] != null) singleIds.add(c.ids[0]);
 
     return {
       clusters: visual.filter((c) => c.count > 1),
       singles: hazards.filter((h) => singleIds.has(h.id)),
     };
-  }, [hazards, hazardMode, region]);
+  }, [hazards, hazardMode, regionKey]); // ✅ depends on regionKey, not whole region object
+
 
   /* ----------------------- Markers ----------------------- */
   const hazardSingleMarkers = useMemo(() => {
@@ -214,7 +225,8 @@ export const MapScreen = () => {
       const { hasSpeedBump, hasPothole } = c.composition;
       const isMixed = hasSpeedBump && hasPothole;
       // Stable key based on content IDs rather than unstable coordinates
-      const clusterKey = `vcluster-${c.ids.sort((a, b) => a - b).join('-')}`;
+      // const clusterKey = `vcluster-${c.ids.sort((a, b) => a - b).join('-')}`;    // Removed
+      const clusterKey = `vcluster-${[...c.ids].sort((a, b) => a - b).join("-")}`;
 
       return (
         <Marker
@@ -224,6 +236,7 @@ export const MapScreen = () => {
           tracksViewChanges={false}
           anchor={{ x: 0.5, y: 0.5 }}
           onPress={() => {
+            if (!region) return;
             const next: Region = {
               ...region,
               latitude: c.lat,
@@ -293,69 +306,71 @@ export const MapScreen = () => {
         </View>
       </View> */}
 
-      <MapView
-        ref={mapRef}
-        style={StyleSheet.absoluteFillObject}
-        customMapStyle={mapStyle}
-        showsPointsOfInterest={showMapLabels}
-        userInterfaceStyle={mode}
-        initialRegion={region}
-        onRegionChangeComplete={(r) => {
-          // IMPORTANT: region updates cause clustering recalculation (that’s intended)
-          setRegion(r);
-        }}
-        provider={mapProvider === 'google' ? PROVIDER_GOOGLE : undefined}
-        // showsMyLocationButton={true}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        onPress={(e) => {
-          if (isSimulatingLocation) {
+      {region && (
+        <MapView
+          ref={mapRef}
+          style={StyleSheet.absoluteFillObject}
+          customMapStyle={mapStyle}
+          userInterfaceStyle={mode}
+          initialRegion={region}
+          onRegionChangeComplete={(r) => {
+            // IMPORTANT: region updates cause clustering recalculation (that’s intended)
+            setRegion(r);
+          }}
+          provider={mapProvider === 'google' ? PROVIDER_GOOGLE : undefined}
+          // showsMyLocationButton={true}
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          onPress={(e) => {
+            if (isSimulatingLocation) {
+              const { latitude, longitude } = e.nativeEvent.coordinate;
+              simulateLocation(latitude, longitude);
+            }
+          }}
+          onLongPress={(e) => {
             const { latitude, longitude } = e.nativeEvent.coordinate;
-            simulateLocation(latitude, longitude);
-          }
-        }}
-        onLongPress={(e) => {
-          const { latitude, longitude } = e.nativeEvent.coordinate;
-          selectDestination({ latitude, longitude });
-        }}
+            selectDestination({ latitude, longitude });
+          }}
 
-      >
-        {/* Custom User Marker removed in favor of native showsUserLocation which is more performant */}
+        >
+          {/* Custom User Marker removed in favor of native showsUserLocation which is more performant */}
 
-        {/* Render logic:
+          {/* Render logic:
             - hazardMode === 'clusters' => server clusters
             - hazardMode === 'points'   => client bubbles + client singles
         */}
-        {hazardMode === 'clusters' ? (
-          serverClusterMarkers
-        ) : (
-          <>
-            {hazardBubbleMarkers}
-            {hazardSingleMarkers}
-          </>
-        )}
+          {hazardMode === 'clusters' ? (
+            serverClusterMarkers
+          ) : (
+            <>
+              {hazardBubbleMarkers}
+              {hazardSingleMarkers}
+            </>
+          )}
 
-        {destination && (
-          <Marker
-            coordinate={{ latitude: destination.lat, longitude: destination.lng }}
-            title={t('destination')}
-            pinColor="#2563EB"
-          />
-        )}
+          {destination && (
+            <Marker
+              coordinate={{ latitude: destination.lat, longitude: destination.lng }}
+              title={t('destination')}
+              pinColor="#2563EB"
+            />
+          )}
 
-        {routeCoords.length > 1 && (
-          <Polyline
-            coordinates={routeCoords}
-            strokeColor={getRouteColor(routeSummary)}
-            strokeWidth={5}
-          />
-        )}
+          {routeCoords.length > 1 && (
+            <Polyline
+              coordinates={routeCoords}
+              strokeColor={getRouteColor(routeSummary)}
+              strokeWidth={5}
+            />
+          )}
 
 
-      </MapView>
+        </MapView>
+      )}
 
       {/* Floating tools */}
       <ActionFloatingTools />
+      <ConsumptionStats />
       {/* Sheets & Banners */}
       <SnackbarBanner />
     </View>

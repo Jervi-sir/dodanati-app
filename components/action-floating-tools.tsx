@@ -2,6 +2,7 @@ import CarIcon from '@/assets/icons/car-icon';
 import CenterMapIcon from '@/assets/icons/center-map-icon';
 import SettingsIcon from '@/assets/icons/settings-icon';
 import StopIcon from '@/assets/icons/stop-icon';
+import MicIcon from '@/assets/icons/mic-icon';
 import { useUI } from '@/contexts/4-ui-context';
 import { useTheme } from '@/contexts/1-theme-context';
 import { useDevice } from '@/contexts/2-device-context';
@@ -51,7 +52,7 @@ export const ActionFloatingTools = () => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { isDriveMode, toggleDriveMode } = useDrive();
-  const { hazardsLoading, handleQuickReport, mode: hazardMode, totalInRadius, hazardCounts } = useHazards();
+  const { hazardsLoading, handleQuickReport, mode: hazardMode, totalInRadius, hazardCounts, isVoiceEnabled, setIsVoiceEnabled } = useHazards();
   const { bootLoading } = useDevice();
   const { locationLoading, recenterOnUser, isSimulatingLocation, toggleSimulationMode, mapRef } = useLocation();
   const { routeSummary, routeLoading, clearRoute, destination } = useRoute();
@@ -148,6 +149,22 @@ export const ActionFloatingTools = () => {
             activeOpacity={0.9}
           >
             {isDriveMode ? <StopIcon size={24} /> : <CarIcon size={26} color={theme.colors.text} />}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              iconBtnStyle,
+              isVoiceEnabled && { backgroundColor: theme.colors.text, borderColor: theme.colors.text }
+            ]}
+            onPress={() => {
+              setIsVoiceEnabled(!isVoiceEnabled);
+              if (!isVoiceEnabled) {
+                showSnackbar("Voice feedback enabled. (Native speech recogn not avail in Expo Go)", "OK");
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <MicIcon size={22} color={isVoiceEnabled ? theme.colors.background : theme.colors.text} />
           </TouchableOpacity>
 
           <TouchableOpacity

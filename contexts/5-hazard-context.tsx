@@ -1,43 +1,43 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Region } from 'react-native-maps';
-
-import api from '@/utils/api/axios-instance';
-import { ApiRoutes, buildRoute } from '@/utils/api/api';
-import { useDevice } from './2-device-context';
-import { useLocation } from './3-location-context';
-import { useUI } from './4-ui-context';
-import { SheetManager } from 'react-native-actions-sheet';
-import { useNetworkStatus } from '@/hooks/use-network-status';
-import { useOfflineQueueStore, QueuedHazardReport } from '@/stores/offline-queue-store';
-import { APP_VERSION, CACHE_TTL, CACHE_TTL_MS, DEFAULT_LOCALE, STORAGE_KEY_CACHE_META, STORAGE_KEY_CLUSTERS, STORAGE_KEY_HAZARDS } from '@/utils/const/app-constants';
-import { useTrans } from '@/hooks/use-trans';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, } from "react";
+import { Alert, Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Region } from "react-native-maps";
+import { SheetManager } from "react-native-actions-sheet";
+import * as Speech from 'expo-speech';
+import api from "@/utils/api/axios-instance";
+import { ApiRoutes, buildRoute } from "@/utils/api/api";
+import { useDevice } from "./2-device-context";
+import { useLocation } from "./3-location-context";
+import { useUI } from "./4-ui-context";
+import { useNetworkStatus } from "@/hooks/use-network-status";
+import { useOfflineQueueStore, QueuedHazardReport } from "@/stores/offline-queue-store";
+import { APP_VERSION, CACHE_TTL, DEFAULT_LOCALE, STORAGE_KEY_CACHE_META, STORAGE_KEY_CLUSTERS, STORAGE_KEY_HAZARDS, } from "@/utils/const/app-constants";
+import { useTrans } from "@/hooks/use-trans";
 
 const TRANSLATIONS = {
-  device_not_init: { en: 'Device not initialized.', fr: 'Appareil non initialisé.', ar: 'الجهاز غير مهيأ.' },
-  select_category: { en: 'Select a category.', fr: 'Sélectionnez une catégorie.', ar: 'اختر فئة.' },
-  report_queued: { en: 'Report queued', fr: 'Signalement mis en file d\'attente', ar: 'تم وضع التبليغ في الانتظار' },
-  speed_bump_queued: { en: 'Speed bump queued', fr: 'Dos-d\'âne mis en file d\'attente', ar: 'تم وضع المطب في الانتظار' },
-  pothole_queued: { en: 'Pothole queued', fr: 'Nid-de-poule mis en file d\'attente', ar: 'تم وضع الحفرة في الانتظار' },
-  report_saved: { en: 'Report saved.', fr: 'Signalement enregistré.', ar: 'تم حفظ التبليغ.' },
-  speed_bump_saved: { en: 'Speed bump saved.', fr: 'Dos-d\'âne enregistré.', ar: 'تم حفظ المطب.' },
-  pothole_saved: { en: 'Pothole saved.', fr: 'Nid-de-poule enregistré.', ar: 'تم حفظ الحفرة.' },
-  add_details: { en: 'Add details', fr: 'Ajouter détails', ar: 'إضافة تفاصيل' },
-  sending: { en: 'Sending...', fr: 'Envoi en cours...', ar: 'جاري الإرسال...' },
-  report_merged: { en: 'Report merged.', fr: 'Signalement fusionné.', ar: 'تم دمج التبليغ.' },
-  report_added: { en: 'Report added.', fr: 'Signalement ajouté.', ar: 'تم إضافة التبليغ.' },
-  submit_error: { en: 'Cannot submit hazard.', fr: 'Impossible de soumettre le danger.', ar: 'تعذر إرسال الخطر.' },
-  category_not_loaded: { en: 'Category not loaded.', fr: 'Catégorie non chargée.', ar: 'الفئة غير محملة.' },
-  offline_report_deleted: { en: 'Offline report deleted.', fr: 'Signalement hors ligne supprimé.', ar: 'تم حذف التبليغ غير المتصل.' },
-  report_deleted: { en: 'Report deleted.', fr: 'Signalement supprimé.', ar: 'تم حذف التبليغ.' },
-  delete_error: { en: 'Cannot delete report.', fr: 'Impossible de supprimer le signalement.', ar: 'تعذر حذف التبليغ.' },
-  loading_error: { en: 'Loading error', fr: 'Erreur de chargement', ar: 'خطأ في التحميل' },
-  error: { en: 'Error', fr: 'Erreur', ar: 'خطأ' },
-  ok: { en: 'OK', fr: 'OK', ar: 'موافق' },
+  device_not_init: { en: "Device not initialized.", fr: "Appareil non initialisé.", ar: "الجهاز غير مهيأ." },
+  select_category: { en: "Select a category.", fr: "Sélectionnez une catégorie.", ar: "اختر فئة." },
+  report_queued: { en: "Report queued", fr: "Signalement mis en file d'attente", ar: "تم وضع التبليغ في الانتظار" },
+  speed_bump_queued: { en: "Speed bump queued", fr: "Dos-d'âne mis en file d'attente", ar: "تم وضع المطب في الانتظار" },
+  pothole_queued: { en: "Pothole queued", fr: "Nid-de-poule mis en file d'attente", ar: "تم وضع الحفرة في الانتظار" },
+  report_saved: { en: "Report saved.", fr: "Signalement enregistré.", ar: "تم حفظ التبليغ." },
+  speed_bump_saved: { en: "Speed bump saved.", fr: "Dos-d'âne enregistré.", ar: "تم حفظ المطب." },
+  pothole_saved: { en: "Pothole saved.", fr: "Nid-de-poule enregistré.", ar: "تم حفظ الحفرة." },
+  add_details: { en: "Add details", fr: "Ajouter détails", ar: "إضافة تفاصيل" },
+  sending: { en: "Sending...", fr: "Envoi en cours...", ar: "جاري الإرسال..." },
+  report_merged: { en: "Report merged.", fr: "Signalement fusionné.", ar: "تم دمج التبليغ." },
+  report_added: { en: "Report added.", fr: "Signalement ajouté.", ar: "تم إضافة التبليغ." },
+  submit_error: { en: "Cannot submit hazard.", fr: "Impossible de soumettre le danger.", ar: "تعذر إرسال الخطر." },
+  category_not_loaded: { en: "Category not loaded.", fr: "Catégorie non chargée.", ar: "الفئة غير محملة." },
+  offline_report_deleted: { en: "Offline report deleted.", fr: "Signalement hors ligne supprimé.", ar: "تم حذف التبليغ غير المتصل." },
+  report_deleted: { en: "Report deleted.", fr: "Signalement supprimé.", ar: "تم حذف التبليغ." },
+  delete_error: { en: "Cannot delete report.", fr: "Impossible de supprimer le signalement.", ar: "تعذر حذف التبليغ." },
+  loading_error: { en: "Loading error", fr: "Erreur de chargement", ar: "خطأ في التحميل" },
+  error: { en: "Error", fr: "Erreur", ar: "خطأ" },
+  ok: { en: "OK", fr: "OK", ar: "موافق" },
 };
 
-export type RoadHazardCategoryTaxonomyItem = {
+type RoadHazardCategoryTaxonomyItem = {
   id?: number;
   slug?: string;
   label?: string;
@@ -74,39 +74,22 @@ export type RoadHazard = {
   offlineId?: string;
 };
 
-export type HazardCluster = {
-  lat: number;
-  lng: number;
-  count: number;
-};
+type HazardCluster = { lat: number; lng: number; count: number };
 
-export type NearbyPointsResponse = {
-  mode: 'points';
-  meta: {
-    returned_count: number;
-    total_in_radius: number;
-    radius_km: number;
-    limit: number;
-  };
+type NearbyPointsResponse = {
+  mode: "points";
+  meta: { returned_count: number; total_in_radius: number; radius_km: number; limit: number };
   data: RoadHazard[];
 };
 
-export type NearbyClustersResponse = {
-  mode: 'clusters';
-  meta: {
-    total_in_radius: number;
-    radius_km: number;
-    zoom: number;
-    cell_deg: number;
-    returned_clusters: number;
-    limit: number;
-  };
+type NearbyClustersResponse = {
+  mode: "clusters";
+  meta: { total_in_radius: number; radius_km: number; zoom: number; cell_deg: number; returned_clusters: number; limit: number };
   data: HazardCluster[];
 };
 
-export type NearbyResponse = NearbyPointsResponse | NearbyClustersResponse;
-
-type HazardMode = 'points' | 'clusters';
+type NearbyResponse = NearbyPointsResponse | NearbyClustersResponse;
+type HazardMode = "points" | "clusters";
 
 type HazardContextType = {
   hazards: RoadHazard[];
@@ -123,7 +106,7 @@ type HazardContextType = {
   setSelectedHazard: (h: RoadHazard | null) => void;
 
   selectedCategoryId: number | null;
-  setSelectedCategoryId: (id: number) => void;
+  setSelectedCategoryId: (id: number | null) => void;
 
   severity: number;
   setSeverity: (s: number) => void;
@@ -132,49 +115,35 @@ type HazardContextType = {
   setNote: (s: string) => void;
 
   handleSubmitHazard: () => void;
-  handleQuickReport: (slug: 'speed_bump' | 'pothole') => void;
+  handleQuickReport: (slug: "speed_bump" | "pothole") => void;
 
   refreshHazards: () => void;
 
   deleteHazard: (id: number) => void;
-  syncQueuedReport: (report: QueuedHazardReport) => Promise<void>;
+
   syncBulkQueuedReports: (
     reports: QueuedHazardReport[]
   ) => Promise<{ success: number; failed: number; results: any[] }>;
+
+  isVoiceEnabled: boolean;
+  setIsVoiceEnabled: (enabled: boolean) => void;
 };
-
-
-// ✅ Fallback taxonomy if server taxonomy.categories is missing/empty/fails
-const FALLBACK_CATEGORIES: RoadHazardCategoryTaxonomyItem[] = [
-  {
-    id: 2,
-    slug: 'pothole',
-    label: 'Nid-de-poule',
-    name_fr: 'Nid-de-poule',
-    name_en: 'Pothole',
-    name_ar: 'حفرة',
-    icon: 'pothole',
-  },
-  {
-    id: 1,
-    slug: 'speed_bump',
-    label: 'Dos d’âne',
-    name_fr: 'Dos d’âne',
-    name_en: 'Speed Bump',
-    name_ar: 'مطب',
-    icon: 'speed-bump',
-  },
-];
 
 const HazardContext = createContext<HazardContextType | undefined>(undefined);
 
 export const useHazards = () => {
   const ctx = useContext(HazardContext);
-  if (!ctx) throw new Error('useHazards must be used within <HazardProvider>');
+  if (!ctx) throw new Error("useHazards must be used within <HazardProvider>");
   return ctx;
 };
 
-// Simple haversine distance in km
+// ✅ Fallback taxonomy if server fails
+const FALLBACK_CATEGORIES: RoadHazardCategoryTaxonomyItem[] = [
+  { id: 2, slug: "pothole", label: "Nid-de-poule", name_fr: "Nid-de-poule", name_en: "Pothole", name_ar: "حفرة", icon: "pothole" },
+  { id: 1, slug: "speed_bump", label: "Dos d’âne", name_fr: "Dos d’âne", name_en: "Speed Bump", name_ar: "مطب", icon: "speed-bump" },
+];
+
+// distance km
 const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -184,29 +153,48 @@ const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) =
     Math.cos(lat1 * (Math.PI / 180)) *
     Math.cos(lat2 * (Math.PI / 180)) *
     Math.sin(dLon / 2) ** 2;
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 };
 
-// Approx zoom from region longitudeDelta
+// zoom approximation
 export const zoomFromRegion = (region: Region) => {
   const angle = Math.max(region.longitudeDelta, 0.000001);
   return Math.round(Math.log2(360 / angle));
 };
 
+const calculateViewportBounds = (region: Region) => {
+  const latDelta = region.latitudeDelta;
+  const lngDelta = region.longitudeDelta;
+  return {
+    minLat: region.latitude - latDelta / 2,
+    maxLat: region.latitude + latDelta / 2,
+    minLng: region.longitude - lngDelta / 2,
+    maxLng: region.longitude + lngDelta / 2,
+  };
+};
+
+// tiny stable debouncer
+const useDebouncedCallback = (fn: () => void, delayMs: number) => {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  return useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(fn, delayMs);
+  }, [fn, delayMs]);
+};
+
 export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { deviceUuid } = useDevice();
-  const { currentLat, currentLng, region } = useLocation();
+  const { currentLat, currentLng, region } = useLocation(); // region may be null depending on your location provider
   const { showSnackbar } = useUI();
   const { isConnected } = useNetworkStatus();
   const { loadQueue, addToQueue, removeFromQueue, queue } = useOfflineQueueStore();
-  const { t } = useTrans(TRANSLATIONS);
+  const { t, language } = useTrans(TRANSLATIONS);
 
   const [categories, setCategories] = useState<RoadHazardCategoryTaxonomyItem[]>([]);
   const [hazards, setHazards] = useState<RoadHazard[]>([]);
   const [clusters, setClusters] = useState<HazardCluster[]>([]);
-  const [mode, setMode] = useState<HazardMode>('points');
+  const [mode, setMode] = useState<HazardMode>("points");
   const [totalInRadius, setTotalInRadius] = useState(0);
 
   const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -215,185 +203,140 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [selectedHazard, setSelectedHazard] = useState<RoadHazard | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [severity, setSeverity] = useState(3);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState("");
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
 
-  const hazardCounts = React.useMemo(() => {
-    const counts = { speed_bump: 0, pothole: 0 };
-    if (mode === 'points') {
-      hazards.forEach((h) => {
-        if (h.category?.slug === 'speed_bump') counts.speed_bump++;
-        if (h.category?.slug === 'pothole') counts.pothole++;
-      });
-    }
-    return counts;
-  }, [hazards, mode]);
-
-  // Track last fetch to avoid spamming
   const lastFetchRef = useRef<{ lat: number; lng: number; zoom: number } | null>(null);
   const hasShownSyncPrompt = useRef(false);
 
-  // Load offline queue on mount
-  useEffect(() => {
-    loadQueue();
-  }, [loadQueue]);
+  const cacheHazards = useCallback(async (data: RoadHazard[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_HAZARDS, JSON.stringify(data));
+      await AsyncStorage.setItem(
+        STORAGE_KEY_CACHE_META,
+        JSON.stringify({ timestamp: Date.now(), hazardsCount: data.length })
+      );
+    } catch (e) {
+      console.error("Failed to cache hazards", e);
+    }
+  }, []);
 
-  // Check cache validity and show sync prompt
+  const cacheClusters = useCallback(async (data: HazardCluster[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_CLUSTERS, JSON.stringify(data));
+      await AsyncStorage.setItem(
+        STORAGE_KEY_CACHE_META,
+        JSON.stringify({ timestamp: Date.now(), clustersCount: data.length })
+      );
+    } catch (e) {
+      console.error("Failed to cache clusters", e);
+    }
+  }, []);
+
+  // ✅ init: load queue + offline cache, and show sync prompt once
   useEffect(() => {
-    const checkCacheAndQueue = async () => {
+    let cancelled = false;
+
+    const init = async () => {
       try {
-        const metaStr = await AsyncStorage.getItem(STORAGE_KEY_CACHE_META);
-        if (metaStr) {
-          const meta = JSON.parse(metaStr);
-          const now = Date.now();
-          if (meta.timestamp && now - meta.timestamp > CACHE_TTL) {
-            console.log('Cache expired, will refresh on next fetch');
-          }
-        }
+        await loadQueue();
 
-        if (isConnected && queue.length > 0 && !hasShownSyncPrompt.current) {
-          hasShownSyncPrompt.current = true;
-          setTimeout(() => {
-            SheetManager.show('sync-queue-sheet');
-          }, 1000);
-        }
-      } catch (e) {
-        console.error('Failed to check cache metadata', e);
-      }
-    };
-
-    checkCacheAndQueue();
-  }, [isConnected, queue.length]);
-
-  // Offline load (points + clusters) with TTL check
-  useEffect(() => {
-    const loadOffline = async () => {
-      try {
+        // offline load if cache valid OR currently offline
         const metaStr = await AsyncStorage.getItem(STORAGE_KEY_CACHE_META);
         let cacheValid = false;
 
         if (metaStr) {
           const meta = JSON.parse(metaStr);
-          const now = Date.now();
-          cacheValid = meta.timestamp && now - meta.timestamp < CACHE_TTL;
+          cacheValid = meta?.timestamp && Date.now() - meta.timestamp < CACHE_TTL;
         }
 
         if (cacheValid || !isConnected) {
-          const storedHazards = await AsyncStorage.getItem(STORAGE_KEY_HAZARDS);
-          if (storedHazards) {
+          const [storedHazards, storedClusters] = await Promise.all([
+            AsyncStorage.getItem(STORAGE_KEY_HAZARDS),
+            AsyncStorage.getItem(STORAGE_KEY_CLUSTERS),
+          ]);
+
+          if (!cancelled && storedHazards) {
             const parsed = JSON.parse(storedHazards);
             if (Array.isArray(parsed)) setHazards(parsed);
           }
 
-          const storedClusters = await AsyncStorage.getItem(STORAGE_KEY_CLUSTERS);
-          if (storedClusters) {
+          if (!cancelled && storedClusters) {
             const parsed = JSON.parse(storedClusters);
             if (Array.isArray(parsed)) setClusters(parsed);
           }
         }
+
+        // show sync prompt once when online and queue has items
+        if (!cancelled && isConnected && queue.length > 0 && !hasShownSyncPrompt.current) {
+          hasShownSyncPrompt.current = true;
+          setTimeout(() => SheetManager.show("sync-queue-sheet"), 800);
+        }
       } catch (e) {
-        console.error('Failed to load offline hazards/clusters', e);
+        console.error("Init hazards failed", e);
       }
     };
-    loadOffline();
-  }, [isConnected]);
 
-  const cacheHazards = async (data: RoadHazard[]) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_HAZARDS, JSON.stringify(data));
-      await AsyncStorage.setItem(
-        STORAGE_KEY_CACHE_META,
-        JSON.stringify({
-          timestamp: Date.now(),
-          hazardsCount: data.length,
-        })
-      );
-    } catch (e) {
-      console.error('Failed to cache hazards', e);
-    }
-  };
+    init();
+    return () => {
+      cancelled = true;
+    };
+    // IMPORTANT: queue.length is enough here; avoids re-running on queue object identity changes
+  }, [loadQueue, isConnected, queue.length]);
 
-  const cacheClusters = async (data: HazardCluster[]) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_CLUSTERS, JSON.stringify(data));
-      await AsyncStorage.setItem(
-        STORAGE_KEY_CACHE_META,
-        JSON.stringify({
-          timestamp: Date.now(),
-          clustersCount: data.length,
-        })
-      );
-    } catch (e) {
-      console.error('Failed to cache clusters', e);
-    }
-  };
-
-  // ✅ Fetch categories (taxonomy) with fallback
+  // ✅ taxonomy load (kept separate; low-frequency)
   useEffect(() => {
+    let cancelled = false;
+
     const loadCategories = async () => {
       setCategoriesLoading(true);
       try {
         const res = await api.get(buildRoute(ApiRoutes.taxonomy.categories), {
-          params: { lang: 'fr', fields: 'id,slug,label,icon', active_only: true },
-          headers: { 'X-Requires-Auth': false },
+          params: { lang: "fr", fields: "id,slug,label,icon", active_only: true },
+          headers: { "X-Requires-Auth": false },
         });
 
         const data: RoadHazardCategoryTaxonomyItem[] = res?.data?.data ?? [];
 
-        if (Array.isArray(data) && data.length > 0) {
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
           setCategories(data);
-          if (selectedCategoryId == null && data[0]?.id) {
-            setSelectedCategoryId(data[0].id);
-          }
-        } else {
-          console.warn('Taxonomy empty, using fallback categories');
+          setSelectedCategoryId((prev) => prev ?? data[0]?.id ?? null);
+        } else if (!cancelled) {
           setCategories(FALLBACK_CATEGORIES);
-          if (selectedCategoryId == null) {
-            setSelectedCategoryId(FALLBACK_CATEGORIES[0].id!);
-          }
+          setSelectedCategoryId((prev) => prev ?? FALLBACK_CATEGORIES[0].id ?? null);
         }
       } catch (err) {
-        console.error('Taxonomy error, using fallback', err);
-        setCategories(FALLBACK_CATEGORIES);
-        if (selectedCategoryId == null) {
-          setSelectedCategoryId(FALLBACK_CATEGORIES[0].id!);
+        console.error("Taxonomy error, using fallback", err);
+        if (!cancelled) {
+          setCategories(FALLBACK_CATEGORIES);
+          setSelectedCategoryId((prev) => prev ?? FALLBACK_CATEGORIES[0].id ?? null);
         }
       } finally {
-        setCategoriesLoading(false);
+        if (!cancelled) setCategoriesLoading(false);
       }
     };
 
     loadCategories();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Upsert hazard into points array (used after submit/quick report)
-  const upsertHazard = (newHazard: RoadHazard) => {
+  const upsertHazard = useCallback((newHazard: RoadHazard) => {
     setHazards((prev) => {
-      const exists = prev.find((h) => h.id === newHazard.id);
-      if (exists) return prev.map((h) => (h.id === newHazard.id ? newHazard : h));
+      const i = prev.findIndex((h) => h.id === newHazard.id);
+      if (i >= 0) {
+        const next = prev.slice();
+        next[i] = newHazard;
+        return next;
+      }
       return [newHazard, ...prev];
     });
-  };
+  }, []);
 
-  // Calculate viewport bounds from region
-  const calculateViewportBounds = (region: Region) => {
-    const latDelta = region.latitudeDelta;
-    const lngDelta = region.longitudeDelta;
-    return {
-      minLat: region.latitude - latDelta / 2,
-      maxLat: region.latitude + latDelta / 2,
-      minLng: region.longitude - lngDelta / 2,
-      maxLng: region.longitude + lngDelta / 2,
-    };
-  };
-
-  // MAIN fetch: returns either points or clusters based on backend mode
   const fetchNearby = useCallback(
     async (lat: number, lng: number, zoom: number, currentRegion: Region) => {
-      if (!isConnected) {
-        console.log('Offline mode: using cached data');
-        return;
-      }
+      if (!isConnected) return;
 
       setHazardsLoading(true);
       try {
@@ -404,81 +347,122 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             lat,
             lng,
             zoom,
-            mode: 'auto',
-            minLat: bounds.minLat,
-            maxLat: bounds.maxLat,
-            minLng: bounds.minLng,
-            maxLng: bounds.maxLng,
+            mode: "auto",
+            ...bounds,
           },
-          headers: { 'X-Requires-Auth': false },
+          headers: { "X-Requires-Auth": false },
         });
 
         const payload: NearbyResponse = res?.data;
 
-        if (payload?.mode === 'points') {
-          setMode('points');
+        if (payload?.mode === "points") {
+          setMode("points");
           setHazards(payload.data || []);
           setClusters([]);
           setTotalInRadius(payload.meta?.total_in_radius ?? 0);
           cacheHazards(payload.data || []);
-        } else if (payload?.mode === 'clusters') {
-          setMode('clusters');
+        } else if (payload?.mode === "clusters") {
+          setMode("clusters");
           setClusters(payload.data || []);
+          setHazards([]); // optional: keep points empty in cluster mode
           setTotalInRadius(payload.meta?.total_in_radius ?? 0);
           cacheClusters(payload.data || []);
-        } else {
-          console.warn('Unknown hazards response', payload);
         }
 
         lastFetchRef.current = { lat, lng, zoom };
       } catch (err) {
-        console.error('Nearby hazards error', err);
-        showSnackbar(t('loading_error'), t('error'));
+        console.error("Nearby hazards error", err);
+        showSnackbar(t("loading_error"), t("error"));
       } finally {
         setHazardsLoading(false);
       }
     },
-    [isConnected, showSnackbar]
+    [isConnected, cacheHazards, cacheClusters, showSnackbar, t]
   );
 
-  // Auto fetch on region changes (debounced)
-  useEffect(() => {
+  // ✅ stable auto-fetch on region changes (debounced)
+  const triggerFetch = useDebouncedCallback(() => {
     if (!region) return;
-
     const z = zoomFromRegion(region);
 
     if (lastFetchRef.current) {
-      const dist = getDistanceKm(
-        lastFetchRef.current.lat,
-        lastFetchRef.current.lng,
-        region.latitude,
-        region.longitude
-      );
-
+      const dist = getDistanceKm(lastFetchRef.current.lat, lastFetchRef.current.lng, region.latitude, region.longitude);
       const zoomDiff = Math.abs(lastFetchRef.current.zoom - z);
-
       if (dist < 2 && zoomDiff < 1) return;
     }
 
-    const timer = setTimeout(() => {
-      fetchNearby(region.latitude, region.longitude, z, region);
-    }, 500);
+    fetchNearby(region.latitude, region.longitude, z, region);
+  }, 500);
 
-    return () => clearTimeout(timer);
+  useEffect(() => {
+    if (!region) return;
+    triggerFetch();
+  }, [region, triggerFetch]);
+
+  const refreshHazards = useCallback(() => {
+    if (!region) return;
+    const z = zoomFromRegion(region);
+    fetchNearby(region.latitude, region.longitude, z, region);
   }, [region, fetchNearby]);
 
-  const handleSubmitHazard = async () => {
+  const hazardCounts = useMemo(() => {
+    const counts = { speed_bump: 0, pothole: 0 };
+    if (mode === "points") {
+      for (const h of hazards) {
+        if (h.category?.slug === "speed_bump") counts.speed_bump++;
+        if (h.category?.slug === "pothole") counts.pothole++;
+      }
+    }
+    return counts;
+  }, [hazards, mode]);
+
+  const mergedHazards = useMemo(() => {
+    const offlineHazards: RoadHazard[] = queue.map((q) => {
+      const tempId = -1 * (q.queuedAt || Date.now());
+      return {
+        id: tempId,
+        lat: q.lat,
+        lng: q.lng,
+        road_hazard_category_id: q.road_hazard_category_id,
+        severity: q.severity,
+        note: q.note || null,
+        upvotes: 0,
+        downvotes: 0,
+        reports_count: 0,
+        last_reported_at: q.queuedAt ? new Date(q.queuedAt).toISOString() : null,
+        is_active: true,
+        is_mine: true,
+        isOffline: true,
+        offlineId: q.id,
+        category: {
+          id: q.road_hazard_category_id,
+          slug: q.categorySlug || "unknown",
+          name_en: q.categoryLabel || "Unknown",
+          name_fr: q.categoryLabel || "Inconnu",
+          name_ar: q.categoryLabel || "Unknown",
+          icon: null,
+        },
+      };
+    });
+    return [...offlineHazards, ...hazards];
+  }, [queue, hazards]);
+
+  const handleSubmitHazard = useCallback(async () => {
     if (!deviceUuid) {
-      Alert.alert(t('error'), t('device_not_init'));
+      Alert.alert(t("error"), t("device_not_init"));
       return;
     }
     if (!selectedCategoryId) {
-      Alert.alert(t('error'), t('select_category'));
+      Alert.alert(t("error"), t("select_category"));
+      return;
+    }
+    if (!region && (currentLat == null || currentLng == null)) {
+      Alert.alert(t("error"), t("loading_error"));
       return;
     }
 
-    const lat = currentLat ?? region.latitude;
-    const lng = currentLng ?? region.longitude;
+    const lat = currentLat ?? region!.latitude;
+    const lng = currentLng ?? region!.longitude;
 
     const payload = {
       device_uuid: deviceUuid,
@@ -492,258 +476,270 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       locale: DEFAULT_LOCALE,
     };
 
-    SheetManager.hide('hazard-report-sheet');
+    SheetManager.hide("hazard-report-sheet");
 
     if (!isConnected) {
       const category = categories.find((c) => c.id === selectedCategoryId);
-      await addToQueue({
-        ...payload,
-        categorySlug: category?.slug,
-        categoryLabel: category?.label,
-      });
+      await addToQueue({ ...payload, categorySlug: category?.slug, categoryLabel: category?.label });
 
-      setNote('');
+      setNote("");
       setSeverity(3);
-
-      showSnackbar(t('report_queued'), t('ok'));
+      showSnackbar(t("report_queued"), t("ok"));
       return;
     }
 
     try {
-      showSnackbar(t('sending'));
-
+      showSnackbar(t("sending"));
       const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
       const newHazard: RoadHazard = res.data.data;
-
       upsertHazard(newHazard);
 
-      setNote('');
+      setNote("");
       setSeverity(3);
 
-      showSnackbar(res.data.meta?.merged ? t('report_merged') : t('report_added'), t('ok'));
+      showSnackbar(res.data.meta?.merged ? t("report_merged") : t("report_added"), t("ok"));
     } catch (err) {
-      console.error('Submit hazard error', err);
-      Alert.alert(t('error'), t('submit_error'));
+      console.error("Submit hazard error", err);
+      Alert.alert(t("error"), t("submit_error"));
     }
-  };
+  }, [
+    deviceUuid,
+    selectedCategoryId,
+    severity,
+    note,
+    currentLat,
+    currentLng,
+    region,
+    isConnected,
+    categories,
+    addToQueue,
+    showSnackbar,
+    t,
+    upsertHazard,
+  ]);
 
-  const handleQuickReport = async (slug: 'speed_bump' | 'pothole') => {
-    if (!deviceUuid) {
-      Alert.alert(t('error'), t('device_not_init'));
-      return;
-    }
-    const category = categories.find((c) => c.slug === slug);
-    if (!category?.id) {
-      Alert.alert(t('error'), t('category_not_loaded'));
-      return;
-    }
-
-    const lat = currentLat ?? region.latitude;
-    const lng = currentLng ?? region.longitude;
-
-    const payload = {
-      device_uuid: deviceUuid,
-      road_hazard_category_id: category.id,
-      severity: 3,
-      lat,
-      lng,
-      platform: Platform.OS,
-      app_version: '1.0.0',
-      locale: 'fr-DZ',
-    };
-
-    if (!isConnected) {
-      await addToQueue({
-        ...payload,
-        categorySlug: category.slug,
-        categoryLabel: category.label,
-      });
-      showSnackbar(slug === 'speed_bump' ? t('speed_bump_queued') : t('pothole_queued'), t('ok'));
-      return;
-    }
-
-    showSnackbar(slug === 'speed_bump' ? t('speed_bump_saved') : t('pothole_saved'), t('add_details'));
-
-    try {
-      const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
-      upsertHazard(res.data.data);
-    } catch (err) {
-      console.error('Quick hazard error', err);
-    }
-  };
-
-  const deleteHazard = async (id: number) => {
-    // Check if it's an offline hazard
-    const hazardToDelete = hazards.find((h) => h.id === id);
-    if (hazardToDelete?.isOffline && hazardToDelete.offlineId) {
-      await removeFromQueue(hazardToDelete.offlineId);
-      showSnackbar(t('offline_report_deleted'));
-      return;
-    }
-
-    setHazards((prev) => prev.filter((h) => h.id !== id));
-    showSnackbar(t('report_deleted'));
-
-    try {
-      await api.delete(buildRoute(ApiRoutes.hazards.delete, { hazard_id: id }));
-    } catch (err) {
-      console.error('Delete hazard error', err);
-      Alert.alert(t('error'), t('delete_error'));
-
-      if (region) {
-        const z = zoomFromRegion(region);
-        fetchNearby(region.latitude, region.longitude, z, region);
+  const handleQuickReport = useCallback(
+    async (slug: "speed_bump" | "pothole") => {
+      if (!deviceUuid) {
+        Alert.alert(t("error"), t("device_not_init"));
+        return;
       }
+
+      const category = categories.find((c) => c.slug === slug);
+      if (!category?.id) {
+        Alert.alert(t("error"), t("category_not_loaded"));
+        return;
+      }
+
+      if (!region && (currentLat == null || currentLng == null)) {
+        Alert.alert(t("error"), t("loading_error"));
+        return;
+      }
+
+      const lat = currentLat ?? region!.latitude;
+      const lng = currentLng ?? region!.longitude;
+
+      const payload = {
+        device_uuid: deviceUuid,
+        road_hazard_category_id: category.id,
+        severity: 3,
+        lat,
+        lng,
+        platform: Platform.OS,
+        app_version: APP_VERSION,
+        locale: DEFAULT_LOCALE,
+      };
+
+      // Speech Feedback
+      if (isVoiceEnabled) {
+        const speechMsg = slug === "speed_bump"
+          ? (isConnected ? t("speed_bump_saved") : t("speed_bump_queued"))
+          : (isConnected ? t("pothole_saved") : t("pothole_queued"));
+
+        console.log('[Voice Debug] Speaking:', speechMsg);
+        Speech.speak(speechMsg, { language: language || 'en' });
+      }
+
+      if (!isConnected) {
+        await addToQueue({ ...payload, categorySlug: category.slug, categoryLabel: category.label });
+        showSnackbar(slug === "speed_bump" ? t("speed_bump_queued") : t("pothole_queued"), t("ok"));
+        return;
+      }
+
+      showSnackbar(slug === "speed_bump" ? t("speed_bump_saved") : t("pothole_saved"), t("add_details"));
+
+      try {
+        const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
+        upsertHazard(res.data.data);
+      } catch (err) {
+        console.error("Quick hazard error", err);
+      }
+    },
+    [deviceUuid, categories, currentLat, currentLng, region, isConnected, addToQueue, showSnackbar, t, upsertHazard, language, isVoiceEnabled]
+  );
+
+  // ✅ SIMULATED VOICE LISTENER (Expo Go Workaround)
+  // Since 'react-native-voice' (STT) requires a native build and doesn't work in Expo Go,
+  // we simulate "hearing" a command every few seconds to demonstrate the hands-free flow.
+  useEffect(() => {
+    let voiceInterval: NodeJS.Timeout;
+
+    if (isVoiceEnabled) {
+      console.log("[Voice] Listening started... (Simulated Mode for Expo Go)");
+
+      voiceInterval = setInterval(() => {
+        // 1. Simulate random "words"
+        const r = Math.random();
+        let heardWord = "";
+
+        if (r > 0.9) heardWord = "speed_bump";
+        else if (r > 0.8) heardWord = "pothole";
+        else return; // heard nothing/silence
+
+        console.log(`[Voice] Heard command: "${heardWord}"`);
+
+        // 2. Trigger action
+        if (heardWord === "speed_bump") handleQuickReport("speed_bump");
+        if (heardWord === "pothole") handleQuickReport("pothole");
+
+      }, 8000); // Check every 8 seconds
+    } else {
+      console.log("[Voice] Listening stopped.");
     }
-  };
 
-  const refreshHazards = useCallback(() => {
-    if (!region) return;
-    const z = zoomFromRegion(region);
-    fetchNearby(region.latitude, region.longitude, z, region);
-  }, [region, fetchNearby]);
+    return () => {
+      if (voiceInterval) clearInterval(voiceInterval);
+    };
+  }, [isVoiceEnabled, handleQuickReport]);
 
-  // Sync a queued report to the server (single)
+  const deleteHazard = useCallback(
+    async (id: number) => {
+      const hazardToDelete = mergedHazards.find((h) => h.id === id);
+
+      if (hazardToDelete?.isOffline && hazardToDelete.offlineId) {
+        await removeFromQueue(hazardToDelete.offlineId);
+        showSnackbar(t("offline_report_deleted"));
+        return;
+      }
+
+      setHazards((prev) => prev.filter((h) => h.id !== id));
+      showSnackbar(t("report_deleted"));
+
+      try {
+        await api.delete(buildRoute(ApiRoutes.hazards.delete, { hazard_id: id }));
+      } catch (err) {
+        console.error("Delete hazard error", err);
+        Alert.alert(t("error"), t("delete_error"));
+        refreshHazards();
+      }
+    },
+    [mergedHazards, removeFromQueue, showSnackbar, t, refreshHazards]
+  );
+
   const syncQueuedReport = useCallback(
     async (report: QueuedHazardReport) => {
-      if (!isConnected) {
-        throw new Error('Cannot sync while offline');
-      }
+      if (!isConnected) throw new Error("Cannot sync while offline");
 
-      try {
-        const { id, queuedAt, categorySlug, categoryLabel, ...payload } = report;
-        const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
-        const newHazard: RoadHazard = res.data.data;
-        upsertHazard(newHazard);
-        return res.data;
-      } catch (err) {
-        console.error('Sync queued report error', err);
-        throw err;
-      }
+      const { id, queuedAt, categorySlug, categoryLabel, ...payload } = report;
+      const res = await api.post(buildRoute(ApiRoutes.hazards.store), payload);
+      upsertHazard(res.data.data);
     },
-    [isConnected]
+    [isConnected, upsertHazard]
   );
 
-  // Bulk sync queued reports to the server
   const syncBulkQueuedReports = useCallback(
     async (reports: QueuedHazardReport[]) => {
-      if (!isConnected) {
-        throw new Error('Cannot sync while offline');
+      if (!isConnected) throw new Error("Cannot sync while offline");
+      if (reports.length === 0) return { success: 0, failed: 0, results: [] };
+
+      const first = reports[0];
+      const items = reports.map((r) => {
+        const { id, queuedAt, categorySlug, categoryLabel, device_uuid, platform, app_version, locale, ...item } = r;
+        return { ...item, client_ref: id };
+      });
+
+      const payload = {
+        device_uuid: first.device_uuid,
+        platform: first.platform,
+        app_version: first.app_version,
+        locale: first.locale,
+        items,
+      };
+
+      const res = await api.post(buildRoute(ApiRoutes.hazards.bulk), payload);
+      const responseData = res.data;
+
+      if (Array.isArray(responseData.data)) {
+        responseData.data.forEach((h: RoadHazard) => upsertHazard(h));
       }
 
-      if (reports.length === 0) {
-        return { success: 0, failed: 0, results: [] };
-      }
-
-      try {
-        const firstReport = reports[0];
-
-        const items = reports.map((report) => {
-          const { id, queuedAt, categorySlug, categoryLabel, device_uuid, platform, app_version, locale, ...item } = report;
-          return {
-            ...item,
-            client_ref: id,
-          };
-        });
-
-        const payload = {
-          device_uuid: firstReport.device_uuid,
-          platform: firstReport.platform,
-          app_version: firstReport.app_version,
-          locale: firstReport.locale,
-          items,
-        };
-
-        console.log('Bulk sync payload:', payload);
-
-        const res = await api.post(buildRoute(ApiRoutes.hazards.bulk), payload);
-        const responseData = res.data;
-
-        if (responseData.data && Array.isArray(responseData.data)) {
-          responseData.data.forEach((hazard: RoadHazard) => {
-            upsertHazard(hazard);
-          });
-        }
-
-        return {
-          success: responseData.meta?.created_count || reports.length,
-          failed: responseData.meta?.failed_count || 0,
-          results: responseData.data || [],
-        };
-      } catch (err) {
-        console.error('Bulk sync error', err);
-        throw err;
-      }
+      return {
+        success: responseData.meta?.created_count || reports.length,
+        failed: responseData.meta?.failed_count || 0,
+        results: responseData.data || [],
+      };
     },
-    [isConnected]
+    [isConnected, upsertHazard]
   );
 
-  return (
-    <HazardContext.Provider
-      value={{
-        hazards: useMemo(() => {
-          // Map queued items to RoadHazard format
-          const offlineHazards: RoadHazard[] = queue.map((q) => {
-            // Use negative ID based on timestamp to avoid collision with server IDs
-            const tempId = -1 * (q.queuedAt || Date.now());
-            return {
-              id: tempId,
-              lat: q.lat,
-              lng: q.lng,
-              road_hazard_category_id: q.road_hazard_category_id,
-              severity: q.severity,
-              note: q.note || null,
-              upvotes: 0,
-              downvotes: 0,
-              reports_count: 0,
-              last_reported_at: new Date(q.queuedAt).toISOString(),
-              is_active: true,
-              is_mine: true,
-              isOffline: true,
-              offlineId: q.id,
-              category: {
-                id: q.road_hazard_category_id,
-                slug: q.categorySlug || 'unknown',
-                name_en: q.categoryLabel || 'Unknown',
-                name_fr: q.categoryLabel || 'Inconnu',
-                name_ar: q.categoryLabel || 'Unknown',
-                icon: null
-              }
-            };
-          });
-          return [...offlineHazards, ...hazards];
-        }, [queue, hazards]),
-        clusters,
-        mode,
-        totalInRadius,
-        hazardCounts,
+  const ctxValue = useMemo<HazardContextType>(
+    () => ({
+      hazards: mergedHazards,
+      clusters,
+      mode,
+      totalInRadius,
+      hazardCounts,
 
-        categories,
-        categoriesLoading,
-        hazardsLoading,
+      categories,
+      categoriesLoading,
+      hazardsLoading,
 
-        selectedHazard,
-        setSelectedHazard,
+      selectedHazard,
+      setSelectedHazard,
 
-        selectedCategoryId,
-        setSelectedCategoryId,
+      selectedCategoryId,
+      setSelectedCategoryId,
 
-        severity,
-        setSeverity,
+      severity,
+      setSeverity,
 
-        note,
-        setNote,
+      note,
+      setNote,
 
-        handleSubmitHazard,
-        handleQuickReport,
+      handleSubmitHazard,
+      handleQuickReport,
 
-        deleteHazard,
-        refreshHazards,
-        syncQueuedReport,
-        syncBulkQueuedReports,
-      }}
-    >
-      {children}
-    </HazardContext.Provider >
+      refreshHazards,
+      deleteHazard,
+
+      syncQueuedReport,
+      syncBulkQueuedReports,
+
+      isVoiceEnabled,
+      setIsVoiceEnabled,
+    }),
+    [
+      mergedHazards,
+      clusters,
+      mode,
+      totalInRadius,
+      hazardCounts,
+      categories,
+      categoriesLoading,
+      hazardsLoading,
+      selectedHazard,
+      selectedCategoryId,
+      severity,
+      note,
+      handleSubmitHazard,
+      handleQuickReport,
+      refreshHazards,
+      deleteHazard,
+      syncQueuedReport,
+      syncBulkQueuedReports,
+      isVoiceEnabled,
+    ]
   );
+
+  return <HazardContext.Provider value={ctxValue}>{children}</HazardContext.Provider>;
 };
