@@ -581,36 +581,36 @@ export const HazardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // ✅ SIMULATED VOICE LISTENER (Expo Go Workaround)
   // Since 'react-native-voice' (STT) requires a native build and doesn't work in Expo Go,
   // we simulate "hearing" a command every few seconds to demonstrate the hands-free flow.
-  useEffect(() => {
-    let voiceInterval: NodeJS.Timeout;
+  // useEffect(() => {
+  //   let voiceInterval: NodeJS.Timeout;
 
-    if (isVoiceEnabled) {
-      console.log("[Voice] Listening started... (Simulated Mode for Expo Go)");
+  //   if (isVoiceEnabled) {
+  //     console.log("[Voice] Listening started... (Simulated Mode for Expo Go)");
 
-      voiceInterval = setInterval(() => {
-        // 1. Simulate random "words"
-        const r = Math.random();
-        let heardWord = "";
+  //     voiceInterval = setInterval(() => {
+  //       // 1. Simulate random "words"
+  //       const r = Math.random();
+  //       let heardWord = "";
 
-        if (r > 0.9) heardWord = "speed_bump";
-        else if (r > 0.8) heardWord = "pothole";
-        else return; // heard nothing/silence
+  //       if (r > 0.9) heardWord = "speed_bump";
+  //       else if (r > 0.8) heardWord = "pothole";
+  //       else return; // heard nothing/silence
 
-        console.log(`[Voice] Heard command: "${heardWord}"`);
+  //       console.log(`[Voice] Heard command: "${heardWord}"`);
 
-        // 2. Trigger action
-        if (heardWord === "speed_bump") handleQuickReport("speed_bump");
-        if (heardWord === "pothole") handleQuickReport("pothole");
+  //       // 2. Trigger action
+  //       if (heardWord === "speed_bump") handleQuickReport("speed_bump");
+  //       if (heardWord === "pothole") handleQuickReport("pothole");
 
-      }, 8000); // Check every 8 seconds
-    } else {
-      console.log("[Voice] Listening stopped.");
-    }
+  //     }, 8000); // Check every 8 seconds
+  //   } else {
+  //     console.log("[Voice] Listening stopped.");
+  //   }
 
-    return () => {
-      if (voiceInterval) clearInterval(voiceInterval);
-    };
-  }, [isVoiceEnabled, handleQuickReport]);
+  //   return () => {
+  //     if (voiceInterval) clearInterval(voiceInterval);
+  //   };
+  // }, [isVoiceEnabled, handleQuickReport]);
 
   const deleteHazard = useCallback(
     async (id: number) => {

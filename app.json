@@ -15,8 +15,9 @@
     "ios": {
       "supportsTablet": true,
       "config": {
-        "googleMapsApiKey": "AIzaSyBPPL7HwyCz5kqipDBK86i_I7g0SsT1clU"
-      }
+        "googleMapsApiKey": "AIzaSyBLkCFmU7tdXKGYIUovB3s1rBNCCqdc4HI"
+      },
+      "bundleIdentifier": "com.jervi.dodanati"
     },
     "android": {
       "adaptiveIcon": {
@@ -34,7 +35,7 @@
       "package": "com.jervi.dodanati",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyBPPL7HwyCz5kqipDBK86i_I7g0SsT1clU"
+          "apiKey": "AIzaSyBLkCFmU7tdXKGYIUovB3s1rBNCCqdc4HI"
         }
       }
     },
