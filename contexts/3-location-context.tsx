@@ -203,6 +203,28 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           return;
         }
 
+        // Fallback timeout: if we don't get a location in 6s, stop loading & default to Algiers
+        setTimeout(() => {
+          if (!cancelled) {
+             setLocationLoading((loading) => {
+               if (loading) {
+                 // Check if we still have no region
+                 if (!regionRef.current) {
+                   const defaultRegion = {
+                      latitude: 36.752887,
+                      longitude: 3.042048,
+                      latitudeDelta: 0.0922,
+                      longitudeDelta: 0.0421,
+                   };
+                   setRegion(defaultRegion);
+                 }
+                 return false; 
+               }
+               return loading;
+             });
+          }
+        }, 6000);
+
         // seed with last known (fast), but don’t hardcode if missing
         try {
           const lastKnown = await Location.getLastKnownPositionAsync({});

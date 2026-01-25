@@ -42,4 +42,5 @@ yarn-error.*
 .env*.local
 .env
 
-app.json
+*.aab
+*.apk

@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "config": {
-        "googleMapsApiKey": "xxx"
+        "googleMapsApiKey": "AIzaSyBPPL7HwyCz5kqipDBK86i_I7g0SsT1clU"
       }
     },
     "android": {
@@ -23,6 +23,10 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -30,7 +34,7 @@
       "package": "com.jervi.dodanati",
       "config": {
         "googleMaps": {
-          "apiKey": "xxx"
+          "apiKey": "AIzaSyBPPL7HwyCz5kqipDBK86i_I7g0SsT1clU"
         }
       }
     },

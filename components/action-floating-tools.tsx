@@ -151,7 +151,7 @@ export const ActionFloatingTools = () => {
             {isDriveMode ? <StopIcon size={24} /> : <CarIcon size={26} color={theme.colors.text} />}
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[
               iconBtnStyle,
               isVoiceEnabled && { backgroundColor: theme.colors.text, borderColor: theme.colors.text }
@@ -165,7 +165,7 @@ export const ActionFloatingTools = () => {
             activeOpacity={0.8}
           >
             <MicIcon size={22} color={isVoiceEnabled ? theme.colors.background : theme.colors.text} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={iconBtnStyle}
