@@ -8,7 +8,8 @@ export const ApiRoutes = {
   },
 
   device: {
-    auth: 'device/auth'
+    auth: 'device/auth',
+    checkUpdate: 'app/check-update'
   },
 
   feedback: 'feedback',
