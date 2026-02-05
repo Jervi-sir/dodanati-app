@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dodanati",
     "slug": "dodanati-app",
-    "version": "1.0.11",
+    "version": "1.0.12",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -26,7 +26,9 @@
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
       ],
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,

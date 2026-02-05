@@ -1,5 +1,5 @@
 // src/screens/MapScreen.tsx
-import { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { StatusBar } from 'expo-status-bar';
@@ -205,15 +205,12 @@ export const MapScreen = () => {
     return clusteredFromPoints.singles.map((h) => {
       const isSelected = selectedHazard?.id === h.id;
       return (
-        <Marker
+        <HazardMapEntry
           key={`hazard-${h.id}`}
-          coordinate={{ latitude: Number(h.lat), longitude: Number(h.lng) }}
+          hazard={h}
+          isSelected={isSelected}
           onPress={() => handleHazardPress(h)}
-          zIndex={isSelected ? 999 : 10}
-          tracksViewChanges={false}
-        >
-          <HazardMarker hazard={h} selected={isSelected} />
-        </Marker>
+        />
       );
     });
   }, [clusteredFromPoints.singles, selectedHazard, handleHazardPress]);
@@ -222,19 +219,13 @@ export const MapScreen = () => {
   const hazardBubbleMarkers = useMemo(() => {
     // Bubble markers built purely on client grouping
     return clusteredFromPoints.clusters.map((c) => {
-      const { hasSpeedBump, hasPothole } = c.composition;
-      const isMixed = hasSpeedBump && hasPothole;
       // Stable key based on content IDs rather than unstable coordinates
-      // const clusterKey = `vcluster-${c.ids.sort((a, b) => a - b).join('-')}`;    // Removed
       const clusterKey = `vcluster-${[...c.ids].sort((a, b) => a - b).join("-")}`;
 
       return (
-        <Marker
+        <ClusterMapEntry
           key={clusterKey}
-          coordinate={{ latitude: c.lat, longitude: c.lng }}
-          zIndex={20}
-          tracksViewChanges={false}
-          anchor={{ x: 0.5, y: 0.5 }}
+          cluster={c}
           onPress={() => {
             if (!region) return;
             const next: Region = {
@@ -246,23 +237,8 @@ export const MapScreen = () => {
             };
             mapRef.current?.animateToRegion(next, 250);
           }}
-        >
-          <View style={stylesCluster.bubbleContainer}>
-            {isMixed ? (
-              <View style={stylesCluster.splitBackground}>
-                <View style={[stylesCluster.splitHalf, { backgroundColor: '#EF4444' }]} />
-                <View style={[stylesCluster.splitHalf, { backgroundColor: '#F59E0B' }]} />
-              </View>
-            ) : (
-              <View style={[
-                stylesCluster.solidBackground,
-                { backgroundColor: hasPothole ? '#EF4444' : (hasSpeedBump ? '#F59E0B' : '#2563EB') }
-              ]} />
-            )}
-            <Text style={stylesCluster.count}>{c.count}</Text>
-          </View>
-        </Marker>
-      )
+        />
+      );
     });
   }, [clusteredFromPoints.clusters, mapRef, region]);
 
@@ -486,4 +462,76 @@ const stylesCluster = StyleSheet.create({
     fontSize: 13,
     zIndex: 2,
   },
+});
+
+/* -------------------------------------------------------------------------- */
+/*                            Sub-components                                  */
+/* -------------------------------------------------------------------------- */
+
+const HazardMapEntry = React.memo(({ hazard, isSelected, onPress }: { hazard: RoadHazard, isSelected: boolean, onPress: () => void }) => {
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+
+  useEffect(() => {
+    if (tracksViewChanges) {
+      const timer = setTimeout(() => {
+        setTracksViewChanges(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [tracksViewChanges]);
+
+  useEffect(() => {
+    setTracksViewChanges(true);
+  }, [isSelected]);
+
+  return (
+    <Marker
+      coordinate={{ latitude: Number(hazard.lat), longitude: Number(hazard.lng) }}
+      onPress={onPress}
+      zIndex={isSelected ? 999 : 10}
+      tracksViewChanges={tracksViewChanges}
+    >
+      <HazardMarker hazard={hazard} selected={isSelected} />
+    </Marker>
+  );
+});
+
+const ClusterMapEntry = React.memo(({ cluster, onPress }: { cluster: ClientCluster, onPress: () => void }) => {
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+  const { hasSpeedBump, hasPothole } = cluster.composition;
+  const isMixed = hasSpeedBump && hasPothole;
+
+  useEffect(() => {
+    if (tracksViewChanges) {
+      const timer = setTimeout(() => {
+        setTracksViewChanges(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [tracksViewChanges]);
+
+  return (
+    <Marker
+      coordinate={{ latitude: cluster.lat, longitude: cluster.lng }}
+      zIndex={20}
+      tracksViewChanges={tracksViewChanges}
+      anchor={{ x: 0.5, y: 0.5 }}
+      onPress={onPress}
+    >
+      <View style={stylesCluster.bubbleContainer}>
+        {isMixed ? (
+          <View style={stylesCluster.splitBackground}>
+            <View style={[stylesCluster.splitHalf, { backgroundColor: '#EF4444' }]} />
+            <View style={[stylesCluster.splitHalf, { backgroundColor: '#F59E0B' }]} />
+          </View>
+        ) : (
+          <View style={[
+            stylesCluster.solidBackground,
+            { backgroundColor: hasPothole ? '#EF4444' : (hasSpeedBump ? '#F59E0B' : '#2563EB') }
+          ]} />
+        )}
+        <Text style={stylesCluster.count}>{cluster.count}</Text>
+      </View>
+    </Marker>
+  );
 });
